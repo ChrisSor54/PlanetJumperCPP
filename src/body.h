@@ -23,7 +23,7 @@ class Body : public PhysicsObject {
         // Methods
         Body(sf::Vector2f position, sf::Vector2f velocity, float mass, float radius, sf::Color);
         void setPosition(sf::Vector2f newPos);
-        void draw(sf::RenderWindow& window, float distance_scale);
+        void draw(sf::RenderWindow& window, float distanceScale);
 
     private:
         sf::CircleShape shape;

@@ -10,6 +10,7 @@
 // CONSTANTS
 
 const float G = 1.0;
+const float CAMERA_SPEED = 10.0;
 
 
 //-----------------------------------------------------------------------
@@ -36,17 +37,44 @@ void Game::run() {
         
         float dt = clock.restart().asSeconds(); // get deltatime
         update(dt);
-        handleInput();
+        handleInput(dt);
         draw(window);
         
     }
 };
 
-void Game::handleInput() {
+void Game::handleInput(float dt) {
     while (const std::optional event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>())
             window.close();
+
+        else if (const auto* keyPressed = event->getIf<sf::Event::KeyReleased>())
+        {
+            switch(keyPressed->code) {
+                case sf::Keyboard::Key::PageUp:
+                    distanceScale = setZoomScale(zoomScale + 1);
+                    break;
+                case sf::Keyboard::Key::PageDown:
+                    distanceScale = setZoomScale(zoomScale - 1);
+                    break;
+            }
+        }
     }
+    sf::Vector2f dirInput = sf::Vector2f(0.0, 0.0);
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
+        dirInput.x -= 1.0;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
+        dirInput.x += 1.0;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+        dirInput.y -= 1.0;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
+        dirInput.y += 1.0;
+    }
+    moveCamera(dirInput * CAMERA_SPEED * distanceScale * dt);
+
 };
 
 void Game::update(float dt) {
@@ -69,7 +97,7 @@ void Game::update(float dt) {
 void Game::draw(sf::RenderWindow& window) {
     window.clear();
     for (Body& body : bodies) {
-        body.draw(window, distance_scale);
+        body.draw(window, distanceScale);
     }
 
     window.display();
@@ -87,6 +115,18 @@ sf::Vector2f Game::getGravityVector(Body& body1, Body& body2, float dt) {
     return gravityVector;
 }
 
+void Game::moveCamera(sf::Vector2f offset) {
+    for (Body& body : bodies) {
+        body.setPosition(body.position - offset);
+    }
+}
+
+float Game::setZoomScale(int newZoomScale) {
+    zoomScale = newZoomScale;
+    float newDistanceScale = static_cast<float>(pow(2, zoomScale));
+    printf("%6.4lf",newDistanceScale);
+    return newDistanceScale;
+}
 
 
 int main() {

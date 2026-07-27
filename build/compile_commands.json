@@ -1,20 +1,20 @@
 [
 {
-  "directory": "E:/Projects/zMisc/PlanetJumper/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -g -std=gnu++17 -o CMakeFiles\\PlanetJumper.dir\\src\\main.cpp.obj -c E:\\Projects\\zMisc\\PlanetJumper\\src\\main.cpp",
-  "file": "E:/Projects/zMisc/PlanetJumper/src/main.cpp",
-  "output": "E:/Projects/zMisc/PlanetJumper/build/CMakeFiles/PlanetJumper.dir/src/main.cpp.obj"
+  "directory": "/home/chrissor/Projects/zMisc/PlanetJumper/build",
+  "command": "/usr/bin/g++ -g -std=gnu++17 -o CMakeFiles/PlanetJumper.dir/src/main.cpp.o -c /home/chrissor/Projects/zMisc/PlanetJumper/src/main.cpp",
+  "file": "/home/chrissor/Projects/zMisc/PlanetJumper/src/main.cpp",
+  "output": "CMakeFiles/PlanetJumper.dir/src/main.cpp.o"
 },
 {
-  "directory": "E:/Projects/zMisc/PlanetJumper/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -g -std=gnu++17 -o CMakeFiles\\PlanetJumper.dir\\src\\body.cpp.obj -c E:\\Projects\\zMisc\\PlanetJumper\\src\\body.cpp",
-  "file": "E:/Projects/zMisc/PlanetJumper/src/body.cpp",
-  "output": "E:/Projects/zMisc/PlanetJumper/build/CMakeFiles/PlanetJumper.dir/src/body.cpp.obj"
+  "directory": "/home/chrissor/Projects/zMisc/PlanetJumper/build",
+  "command": "/usr/bin/g++ -g -std=gnu++17 -o CMakeFiles/PlanetJumper.dir/src/body.cpp.o -c /home/chrissor/Projects/zMisc/PlanetJumper/src/body.cpp",
+  "file": "/home/chrissor/Projects/zMisc/PlanetJumper/src/body.cpp",
+  "output": "CMakeFiles/PlanetJumper.dir/src/body.cpp.o"
 },
 {
-  "directory": "E:/Projects/zMisc/PlanetJumper/build",
-  "command": "C:\\msys64\\mingw64\\bin\\g++.exe -g -std=gnu++17 -o CMakeFiles\\PlanetJumper.dir\\src\\player.cpp.obj -c E:\\Projects\\zMisc\\PlanetJumper\\src\\player.cpp",
-  "file": "E:/Projects/zMisc/PlanetJumper/src/player.cpp",
-  "output": "E:/Projects/zMisc/PlanetJumper/build/CMakeFiles/PlanetJumper.dir/src/player.cpp.obj"
+  "directory": "/home/chrissor/Projects/zMisc/PlanetJumper/build",
+  "command": "/usr/bin/g++ -g -std=gnu++17 -o CMakeFiles/PlanetJumper.dir/src/player.cpp.o -c /home/chrissor/Projects/zMisc/PlanetJumper/src/player.cpp",
+  "file": "/home/chrissor/Projects/zMisc/PlanetJumper/src/player.cpp",
+  "output": "CMakeFiles/PlanetJumper.dir/src/player.cpp.o"
 }
 ]

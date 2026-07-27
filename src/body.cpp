@@ -26,10 +26,11 @@ void Body::setPosition(sf::Vector2f position) {
     this->position = position;
 };
 
-void Body::draw(sf::RenderWindow& window, float distance_scale) {
+void Body::draw(sf::RenderWindow& window, float distanceScale) {
 
-    sf::Vector2f scaled_position = 1/distance_scale * position;
+    sf::Vector2f scaled_position = 1/distanceScale * position;
     sf::Vector2f center = .5f * static_cast<sf::Vector2f>(window.getSize());
     shape.setPosition(scaled_position + center);
+    shape.setRadius(radius / distanceScale);
     window.draw(shape);
 };
