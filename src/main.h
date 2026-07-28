@@ -1,8 +1,8 @@
 #pragma once
-#include <SFML/Graphics.hpp>
-#include <vector>
-#include "body.h"
-#include "player.h"
+#include "includes.h"
+
+#include "PhysicsObject.h"
+#include "Player.h"
 
 class Game {
     public:
@@ -15,17 +15,18 @@ class Game {
         
     private:
         // Members
-        std::vector<Body> bodies;
+        std::vector<std::unique_ptr<PhysicsObject>> objects;
         float distanceScale = 1.0;
         signed int zoomScale = 0;
 
         // Methods
-        void handleInput(float dt);
-        void update(float dt);
+        void handleInput(double dt);
+        void update(double dt);
         void draw(sf::RenderWindow& window);
 
+        void addBody(Vector2d position, Vector2d velocity, double mass, double radius, sf::Color color);
         float setZoomScale(int newZoomScale);
-        void moveCamera(sf::Vector2f offset);
+        void moveCamera(Vector2d offset);
 
-        sf::Vector2f getGravityVector(Body& body1, Body& body2, float dt);
+        Vector2d getGravityVector(PhysicsObject& obj1, PhysicsObject& obj2, double dt);
 };

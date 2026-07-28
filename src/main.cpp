@@ -1,16 +1,10 @@
 #include "main.h"
-#include <SFML/Graphics.hpp>
-#include <iostream>
-#include <cmath>
-#include "player.h"
-#include "body.h"
 
 
 //-----------------------------------------------------------------------
 // CONSTANTS
 
-const float G = 1.0;
-const float CAMERA_SPEED = 10.0;
+const float CAMERA_SPEED = 100.0;
 
 
 //-----------------------------------------------------------------------
@@ -30,8 +24,8 @@ void Game::run() {
     window.setFramerateLimit(60);
     window.setVerticalSyncEnabled(true);
 
-    bodies.push_back(Body(sf::Vector2f(10.f, 10.f), sf::Vector2f(0.0, 0.0), 6000.0, 10.0, sf::Color(255, 255, 255)));
-    bodies.push_back(Body(sf::Vector2f(50.f, 10.f), sf::Vector2f(0.0, -9.0), 10.0, 10.0, sf::Color(255, 255, 255)));
+    addBody(Vector2d(10.f, 10.f), Vector2d(0.0, 0.0), 6000.0, 10.0, sf::Color(255, 255, 255));
+    addBody(Vector2d(50.f, 10.f), Vector2d(0.0, -9.0), 10.0, 10.0, sf::Color(255, 255, 255));
 
     while (window.isOpen()) {
         
@@ -43,7 +37,7 @@ void Game::run() {
     }
 };
 
-void Game::handleInput(float dt) {
+void Game::handleInput(double dt) {
     while (const std::optional event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>())
             window.close();
@@ -60,7 +54,7 @@ void Game::handleInput(float dt) {
             }
         }
     }
-    sf::Vector2f dirInput = sf::Vector2f(0.0, 0.0);
+    Vector2d dirInput = Vector2d(0.0, 0.0);
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
         dirInput.x -= 1.0;
     }
@@ -73,58 +67,63 @@ void Game::handleInput(float dt) {
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
         dirInput.y += 1.0;
     }
-    moveCamera(dirInput * CAMERA_SPEED * distanceScale * dt);
+    moveCamera(dirInput * (CAMERA_SPEED * distanceScale * dt));
 
 };
 
-void Game::update(float dt) {
-    for (Body& body1 : bodies) {
-        for (Body& body2 : bodies) {
-            if (&body1 == &body2) {
+void Game::update(double dt) {
+    for (auto& obj1 : objects) {
+        for (auto& obj2 : objects) {
+            if (&obj1 == &obj2) {
                 continue;
             }
-            sf::Vector2f gravVector = getGravityVector(body1, body2, dt);
-            body1.velocity += gravVector;
+            Vector2d gravVector = getGravityVector(*obj1, *obj2, dt);
+            obj1->velocity += gravVector;
         }
     }
 
 
-    for (Body& body : bodies) {
-        body.setPosition(body.position + body.velocity*dt);
+    for (auto& obj : objects) {
+        obj->position += obj->velocity*dt;
     }
 };
 
 void Game::draw(sf::RenderWindow& window) {
     window.clear();
-    for (Body& body : bodies) {
-        body.draw(window, distanceScale);
+    for (auto& obj : objects) {
+        obj->draw(window, distanceScale);
     }
 
     window.display();
 }
 
-sf::Vector2f Game::getGravityVector(Body& body1, Body& body2, float dt) {
-    sf::Vector2f dv = body2.position - body1.position;
-    float dist = sqrt(pow(dv.x, 2) + pow(dv.y, 2));
-    float sqrDist = pow(dist, 2);
+
+void Game::addBody(Vector2d position, Vector2d velocity, double mass, double radius, sf::Color color) {
+    objects.push_back(std::make_unique<Body>(position, velocity, mass, radius, color));
+}
+
+
+Vector2d Game::getGravityVector(PhysicsObject& obj1, PhysicsObject& obj2, double dt) {
+    Vector2d dv = obj2.position - obj1.position;
+    double dist = sqrt(pow(dv.x, 2) + pow(dv.y, 2));
+    double sqrDist = pow(dist, 2);
     if (sqrDist == 0) {
-        return sf::Vector2f(0.0, 0.0);
+        return Vector2d(0.0, 0.0);
     }
-    sf::Vector2f normal = dv/dist;
-    sf::Vector2f gravityVector = normal * static_cast<float>(sqrt(G*body2.mass/sqrDist))*dt;
+    Vector2d normal = dv/dist;
+    Vector2d gravityVector = normal * sqrt(G*obj2.mass/sqrDist)*dt;
     return gravityVector;
 }
 
-void Game::moveCamera(sf::Vector2f offset) {
-    for (Body& body : bodies) {
-        body.setPosition(body.position - offset);
+void Game::moveCamera(Vector2d offset) {
+    for (auto& obj : objects) {
+        obj->position -= offset;
     }
 }
 
 float Game::setZoomScale(int newZoomScale) {
     zoomScale = newZoomScale;
     float newDistanceScale = static_cast<float>(pow(2, zoomScale));
-    printf("%6.4lf",newDistanceScale);
     return newDistanceScale;
 }
 

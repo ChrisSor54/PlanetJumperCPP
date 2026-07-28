@@ -8,6 +8,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(SFML 3 COMPONENTS Graphics Window System REQUIRED)
 
 add_executable(PlanetJumper src/main.cpp
-    src/body.cpp
-    src/player.cpp)
+    src/PhysicsObject.cpp
+    src/Player.cpp)
 target_link_libraries(PlanetJumper PRIVATE SFML::Graphics SFML::Window SFML::System)

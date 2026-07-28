@@ -1,5 +1,3 @@
-#include "player.h"
-#include <SFML/Graphics.hpp>
-#include <iostream>
-#include "main.h"
-#include <cmath>
+#include "includes.h"
+
+#include "Player.h"

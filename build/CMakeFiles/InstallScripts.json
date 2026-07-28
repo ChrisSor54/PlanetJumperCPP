@@ -1,7 +1,7 @@
 {
 	"InstallScripts" : 
 	[
-		"/home/chrissor/Projects/zMisc/PlanetJumper/build/cmake_install.cmake"
+		"E:/Projects/zMisc/PlanetJumper/build/cmake_install.cmake"
 	],
 	"Parallel" : false
 }
