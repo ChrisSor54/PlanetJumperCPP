@@ -24,8 +24,8 @@ void Game::run() {
     window.setFramerateLimit(60);
     window.setVerticalSyncEnabled(true);
 
-    addBody(Vector2d(50.f, 10.f), Vector2d(0.0, 0.0), 1000000.0, 10.0, sf::Color(255, 255, 255));
-    addBody(Vector2d(100.f, 10.f), Vector2d(-5.0, 0.0), 100.0, 10.0, sf::Color(255, 255, 255));
+    addBody(Vector2d(50.f,  10.f), Vector2d(5.0, 0.0),  1000000.0, 10.0, sf::Color(255, 255, 255));
+    addBody(Vector2d(100.f, 10.f), Vector2d(-5.0, 0.0), 1000000.0, 10.0, sf::Color(255, 255, 255));
 
     while (window.isOpen()) {
         
@@ -73,17 +73,31 @@ void Game::handleInput(double dt) {
 };
 
 void Game::update(double dt) {
+    bool collisionOccurred = false;
     for (auto& obj1 : objects) {
         for (auto& obj2 : objects) {
             if (&obj1 == &obj2) {
                 continue;
             }
-            obj1->updateForces(*obj2, dt);
+            if (obj1->updateForces(*obj2, dt)) {
+                collisionOccurred = true;
+            }
         }
     }
 
     for (auto& obj : objects) {
         obj->updatePosition(dt);
+    }
+
+    if (collisionOccurred) {
+        for (auto& obj1 : objects) {
+            for (auto& obj2 : objects) {
+                if (&obj1 == &obj2) {
+                    continue;
+                }
+                obj1->fixOverlap(*obj2, dt);
+            }
+        }
     }
 };
 

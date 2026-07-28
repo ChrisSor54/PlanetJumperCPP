@@ -11,6 +11,7 @@ PhysObj::PhysicsObject(Vector2d position, Vector2d velocity, double mass, double
         static int numBodies = 0;
         this->id = numBodies;
         numBodies++;
+        this->velocityBuffer = Vector2d(0.0, 0.0);
     };
 
 // Public Methods ----------------------------------------------------------------------------------
@@ -22,49 +23,67 @@ void PhysObj::setPosition(Vector2d position) {
 /// @brief Updates velocity with the resulting forces of interactions between PhysicsObjects
 /// @param other The PhysicsObject being interacted with
 /// @param dt Deltatime
-void PhysObj::updateForces(PhysObj& other, double dt) {
+/// @return Returns true if a collision occurred
+bool PhysObj::updateForces(PhysObj& other, double dt) {
     Vector2d gravityVector = getGravityVector(other)*dt;
-    if (checkCollision(other, dt)) {
+    double surfaceDist = getSurfaceDistance(other);
+    if (surfaceDist < -COLLISION_OVERLAP_MARGIN) {
         Vector2d collisionVector = getCollisionImpulse(other);
-        applyImpulse(collisionVector);
-        other.applyImpulse(-collisionVector);
-    } else {
-        velocity += gravityVector;
-        if (checkCollision(other, dt)) {
-            // If gravity is the only force causing collision, don't apply it
-            velocity -= gravityVector;
+        if (collisionVector.length() > 0.1/mass) {
+            applyImpulse(collisionVector);
+            std::cout << "Collision occured: " << std::to_string(id) << std::endl;
+            return true;
         }
+    } else if (surfaceDist > 0) {
+        velocityBuffer += gravityVector;
+        return false;
+    }
+    return false;
+};
+
+/// @brief Update the position of the object by its velocity
+/// @param dt Deltatime
+void PhysObj::updatePosition(double dt) {
+    //position += positionBuffer;
+    velocity += velocityBuffer;
+    position += (velocity*dt);
+    velocityBuffer = Vector2d(0.0, 0.0);
+};
+
+
+/// @brief Checks for and removes overlap between objects
+/// @param other The other object to check
+/// @param dt Deltatime
+void PhysObj::fixOverlap(PhysObj& other, double dt) {
+    if (checkCollision(other, dt)) {
         double surfaceDist = getSurfaceDistance(other);
         if (surfaceDist < 0) {
             Vector2d offset = (position - other.position).normalized() * surfaceDist;
                 // How far position needs to be offset to avoid overlap
-            if (mass < other.mass) {
+            if (mass == other.mass) {
+                position -= offset/2.0;
+                other.position += offset/2.0;
+            } else if (mass < other.mass) {
                 position -= offset;
             } else {
                 other.position += offset;
             }
         }
     }
-};
-
-/// @brief Update the position of the object by its velocity
-/// @param dt Deltatime
-void PhysObj::updatePosition(double dt) {
-    position += (velocity*dt);
-};
+}
 
 
 // Protected Methods -------------------------------------------------------------------------------
 
-/// @brief Checks if this PhyicsObject will colide with other
+/// @brief Checks if this PhyicsObject will collide with other
 /// @param other The PhysicsObject to check with
 /// @param dt Deltatime
 /// @return Whether a collision will occur
 bool PhysObj::checkCollision(PhysObj& other, double dt) {
     Vector2d futurePos = position + (velocity * dt);
     Vector2d otherFuturePos = other.position + (other.velocity * dt);
-    double sqrRadii = pow(radius + other.radius, 2);
-    return (futurePos - otherFuturePos).lengthSquared() <= (sqrRadii + COLLISION_MARGIN);
+    //double sqrRadii = pow(radius + other.radius - COLLISION_MARGIN, 2);
+    return (futurePos - otherFuturePos).length() <= (radius + other.radius);
 };
 
 /// @brief Get the collision impulse vector
@@ -89,7 +108,7 @@ double PhysObj::getSurfaceDistance(PhysObj& other) {
 /// @brief Apply an instant impulse to a PhysicsObject
 /// @param impulseVector The vector of the impulse
 void PhysObj::applyImpulse(Vector2d impulseVector) {
-    velocity += impulseVector/mass;
+    velocityBuffer += impulseVector/mass;
 };
 
 
@@ -114,20 +133,30 @@ Vector2d PhysObj::getGravityVector(PhysicsObject& other) {
 // Body
 //--------------------------------------------------------------------------------------------------
 
-const sf::Font font("arial.ttf");
+sf::Font Body::font;
+bool Body::fontLoaded = false;
 
 Body::Body(Vector2d position, Vector2d velocity, double mass, double radius, sf::Color color) 
-    : PhysicsObject(position, velocity, mass, radius), color(color), text(font, std::to_string(id), 10) {
+    : PhysicsObject(position, velocity, mass, radius), color(color), text(sf::Text(font, "", 10)) {
     shape.setFillColor(color);
     shape.setRadius(radius);
+    text.setString(std::to_string(id));
+    text.setFillColor(color);
 };
 
 void Body::draw(sf::RenderWindow& window, float distanceScale) {
-
     sf::Vector2f scaledPosition = static_cast<sf::Vector2f>(position)/distanceScale;
     sf::Vector2f center = static_cast<sf::Vector2f>(window.getSize())/2.f;
-    text.setPosition(scaledPosition + center);
     shape.setPosition(scaledPosition + center);
     shape.setRadius(radius / distanceScale);
     window.draw(shape);
+    if (!fontLoaded) {
+        if (!font.openFromFile("Hack-Regular.ttf")) {
+            return;
+        }
+        fontLoaded = true;
+    }
+    text.setPosition(scaledPosition + center + sf::Vector2f(0.0, -radius - 2.0));
+    window.draw(text);
+    
 };
