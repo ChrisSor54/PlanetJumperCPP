@@ -1,4 +1,10 @@
 {
+    "editor.rulers": [
+        {
+            "column": 100,
+            "color": "#fff1"
+        }
+    ],
     "cmake.generator": "Ninja",
     "cmake.configureSettings": {
         "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",

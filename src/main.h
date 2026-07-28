@@ -27,6 +27,4 @@ class Game {
         void addBody(Vector2d position, Vector2d velocity, double mass, double radius, sf::Color color);
         float setZoomScale(int newZoomScale);
         void moveCamera(Vector2d offset);
-
-        Vector2d getGravityVector(PhysicsObject& obj1, PhysicsObject& obj2, double dt);
 };

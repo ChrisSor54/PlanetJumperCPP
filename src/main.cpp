@@ -24,12 +24,13 @@ void Game::run() {
     window.setFramerateLimit(60);
     window.setVerticalSyncEnabled(true);
 
-    addBody(Vector2d(10.f, 10.f), Vector2d(0.0, 0.0), 6000.0, 10.0, sf::Color(255, 255, 255));
-    addBody(Vector2d(50.f, 10.f), Vector2d(0.0, -9.0), 10.0, 10.0, sf::Color(255, 255, 255));
+    addBody(Vector2d(50.f, 10.f), Vector2d(0.0, 0.0), 1000000.0, 10.0, sf::Color(255, 255, 255));
+    addBody(Vector2d(100.f, 10.f), Vector2d(-5.0, 0.0), 100.0, 10.0, sf::Color(255, 255, 255));
 
     while (window.isOpen()) {
         
         float dt = clock.restart().asSeconds(); // get deltatime
+        dt = 0.016;
         update(dt);
         handleInput(dt);
         draw(window);
@@ -77,14 +78,12 @@ void Game::update(double dt) {
             if (&obj1 == &obj2) {
                 continue;
             }
-            Vector2d gravVector = getGravityVector(*obj1, *obj2, dt);
-            obj1->velocity += gravVector;
+            obj1->updateForces(*obj2, dt);
         }
     }
 
-
     for (auto& obj : objects) {
-        obj->position += obj->velocity*dt;
+        obj->updatePosition(dt);
     }
 };
 
@@ -100,19 +99,6 @@ void Game::draw(sf::RenderWindow& window) {
 
 void Game::addBody(Vector2d position, Vector2d velocity, double mass, double radius, sf::Color color) {
     objects.push_back(std::make_unique<Body>(position, velocity, mass, radius, color));
-}
-
-
-Vector2d Game::getGravityVector(PhysicsObject& obj1, PhysicsObject& obj2, double dt) {
-    Vector2d dv = obj2.position - obj1.position;
-    double dist = sqrt(pow(dv.x, 2) + pow(dv.y, 2));
-    double sqrDist = pow(dist, 2);
-    if (sqrDist == 0) {
-        return Vector2d(0.0, 0.0);
-    }
-    Vector2d normal = dv/dist;
-    Vector2d gravityVector = normal * sqrt(G*obj2.mass/sqrDist)*dt;
-    return gravityVector;
 }
 
 void Game::moveCamera(Vector2d offset) {
