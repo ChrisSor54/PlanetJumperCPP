@@ -25,6 +25,8 @@ class PhysicsObject {
         void updateForces(PhysicsObject& other, double dt);
         void updatePosition(double dt);
         void fixOverlap(PhysicsObject& other, double dt);
+        void applyImpulse(Vector2d impulseVector);
+
 
         virtual void draw(sf::RenderWindow& window, float distanceScale) = 0;
         virtual ~PhysicsObject() {};
@@ -36,7 +38,6 @@ class PhysicsObject {
         Vector2d getCollisionImpulse(PhysicsObject& other, double elasticity);
         double getSurfaceDistance(PhysicsObject& other);
         void setPosition(Vector2d newPos);
-        void applyImpulse(Vector2d impulseVector);
         Vector2d getGravityVector(PhysicsObject& other);
         
 

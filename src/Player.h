@@ -19,6 +19,7 @@ struct Animation {
     int row;
     int column;
     int numSprites;
+    float animSpeed;
 };
 
 const double MOVE_SPEED = 100;
@@ -40,23 +41,39 @@ class Player : public PhysObj {
         // Methods
         Player();
 
+        State getState();
+        void setState(State newState);
         void handleInput(sf::Event inputEvent, double dt);
         void update(double dt);
         void draw(sf::RenderWindow& window, float distanceScale) override;
 
         
     private:
-    sf::Clock animationTimer;
+    float animationTimer;
+    Anim currentAnimation;
+    Anim animationBuffer;
+    State stateBuffer;
     bool flipSprite;
+
+
     std::unordered_map<Anim, Animation> animations = {
         { Anim::IDLE, {
         .row = 0,
         .column = 0,
-        .numSprites = 1
+        .numSprites = 1,
+        .animSpeed = 0
+        }},
+        { Anim::WALKING, {
+            .row = 0,
+            .column = 0,
+            .numSprites = 4,
+            .animSpeed = 4
         }}
     };
 
     void playAnimation(Anim anim);
+    void updateState();
+    void updateAnimation(float dt);
 
 };
 

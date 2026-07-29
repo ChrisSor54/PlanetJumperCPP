@@ -17,13 +17,13 @@ PhysObj::PhysicsObject(Vector2d position, Vector2d velocity, double mass, double
         this->velocityBuffer = Vector2d(0.0, 0.0);
         hasCollided = false;
         elasticity = ELASTICITY;
-    };
+    }
 
 // Public Methods ----------------------------------------------------------------------------------
 
 void PhysObj::setPosition(Vector2d position) {
     this->position = position;
-};
+}
 
 /// @brief Updates velocity with the resulting forces of interactions between PhysicsObjects
 /// @param other The PhysicsObject being interacted with
@@ -52,7 +52,7 @@ void PhysObj::updateForces(PhysObj& other, double dt) {
             parentObject = &other;
         }
     }
-};
+}
 
 /// @brief Update the position of the object by its velocity
 /// @param dt Deltatime
@@ -61,7 +61,7 @@ void PhysObj::updatePosition(double dt) {
     velocity += velocityBuffer;
     position += (velocity*dt);
     velocityBuffer = Vector2d(0.0, 0.0);
-};
+}
 
 
 /// @brief Checks for and removes overlap between objects
@@ -85,6 +85,12 @@ void PhysObj::fixOverlap(PhysObj& other, double dt) {
     }
 }
 
+/// @brief Apply an instant impulse to a PhysicsObject
+/// @param impulseVector The vector of the impulse
+void PhysObj::applyImpulse(Vector2d impulseVector) {
+    velocityBuffer += impulseVector/mass;
+}
+
 
 // Protected Methods -------------------------------------------------------------------------------
 
@@ -97,14 +103,14 @@ bool PhysObj::checkCollision(PhysObj& other, double dt) {
     Vector2d otherFuturePos = other.position + (other.velocity * dt);
     double sqrRadii = pow(radius + other.radius, 2);
     return (futurePos - otherFuturePos).lengthSquared() <= sqrRadii;
-};
+}
 
 /// @brief Get the collision impulse vector
 /// @param other The colliding PhysicsObject
 /// @return The impulse vector
 Vector2d PhysObj::getCollisionImpulse(PhysObj& other) {
     return getCollisionImpulse(other, elasticity);
-};
+}
 
 /// @brief Get the collision impulse vector
 /// @param other The colliding PhysicsObject
@@ -116,21 +122,14 @@ Vector2d PhysObj::getCollisionImpulse(PhysObj& other, double elasticity) {
     double vn = relativeVelocity.dot(collisionNormal);
     Vector2d collisionImpulse = -(vn*(1 + elasticity)/(1/mass + 1/other.mass)) * collisionNormal;
     return collisionImpulse;
-};
+}
 
 /// @brief Get the distance between object surfaces
 /// @param other The other PhsyicsObject
 /// @return The distance between their surfaces
 double PhysObj::getSurfaceDistance(PhysObj& other) {
     return (other.position - position).length() - (radius + other.radius);
-};
-
-/// @brief Apply an instant impulse to a PhysicsObject
-/// @param impulseVector The vector of the impulse
-void PhysObj::applyImpulse(Vector2d impulseVector) {
-    velocityBuffer += impulseVector/mass;
-};
-
+}
 
 /// @brief Get the acceleration vector of the gravitational force between two PhysicsObjects
 /// @param other The other PhysicsObject
@@ -144,7 +143,7 @@ Vector2d PhysObj::getGravityVector(PhysicsObject& other) {
     }
     Vector2d gravityVector = dPosition.normalized() * -G*other.mass/sqrDist;
     return gravityVector;
-};
+}
 
 
 
@@ -158,7 +157,7 @@ Body::Body(Vector2d position, Vector2d velocity, double mass, double radius, sf:
     shape.setFillColor(color);
     shape.setRadius(radius);
     shape.setOrigin(sf::Vector2f(radius, radius));
-};
+}
 
 void Body::draw(sf::RenderWindow& window, float distanceScale) {
     sf::Vector2f scaledPosition = static_cast<sf::Vector2f>(position)/distanceScale;
@@ -167,4 +166,4 @@ void Body::draw(sf::RenderWindow& window, float distanceScale) {
     shape.setRadius(radius / distanceScale);
     shape.setOrigin(sf::Vector2f(radius/distanceScale, radius/distanceScale));
     window.draw(shape);
-};
+}

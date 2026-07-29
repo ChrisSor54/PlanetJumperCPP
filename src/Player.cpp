@@ -12,20 +12,26 @@ pl::Player()
         throw std::invalid_argument("Bad player texture");
     }
     sprite.setTexture(spriteTexture);
-    playAnimation(Anim::IDLE);
+    playAnimation(Anim::WALKING);
     //sprite.setPosition(static_cast<sf::Vector2f>(position));
     sprite.setOrigin(sf::Vector2f(SPRITE_WIDTH/2.f, SPRITE_WIDTH/2.f));
 
 
-};
+}
 
 
 void pl::update(double dt) {
+    switch (state) {
+
+    }
+
+
+
     if (parentObject) {
         rotation = (position-parentObject->position).angle();
     }
-    std::cout << std::to_string(rotation.asDegrees()) << std::endl;
-};
+    updateAnimation(dt);
+}
 
 void pl::playAnimation(Anim anim) {
     int row = animations[anim].row;
@@ -35,7 +41,28 @@ void pl::playAnimation(Anim anim) {
         sf::Vector2i(column*SPRITE_WIDTH, row*SPRITE_WIDTH),
         sf::Vector2i(SPRITE_WIDTH, SPRITE_WIDTH)
     ));
-};
+    currentAnimation = anim;
+    animationTimer = 0;
+}
+
+void pl::updateAnimation(float dt) {
+    float previousTimer = animationTimer;
+    animationTimer += animations[currentAnimation].animSpeed*dt;
+    int animLength = animations[currentAnimation].numSprites;
+
+    if (floor(previousTimer) != floor(animationTimer)) {
+        animationTimer = fmod(animationTimer, animLength);
+        int spriteIndex = floor(animationTimer);
+        int row = animations[currentAnimation].row;
+        int column = animations[currentAnimation].column;
+
+        sprite.setTextureRect(sf::IntRect(
+            sf::Vector2i((column + spriteIndex)*SPRITE_WIDTH, row*SPRITE_WIDTH),
+            sf::Vector2i(SPRITE_WIDTH, SPRITE_WIDTH)
+        ));
+    }
+
+}
 
 
 void pl::draw(sf::RenderWindow& window, float distanceScale) {
