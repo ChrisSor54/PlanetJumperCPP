@@ -18,6 +18,7 @@ class Game {
         std::vector<std::unique_ptr<PhysicsObject>> objects;
         float distanceScale = 1.0;
         signed int zoomScale = 0;
+        Player player;
 
         // Methods
         void handleInput(double dt);

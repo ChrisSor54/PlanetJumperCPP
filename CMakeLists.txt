@@ -10,4 +10,10 @@ find_package(SFML 3 COMPONENTS Graphics Window System REQUIRED)
 add_executable(PlanetJumper src/main.cpp
     src/PhysicsObject.cpp
     src/Player.cpp)
+
+add_custom_command(TARGET PlanetJumper POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/src/assets $<TARGET_FILE_DIR:PlanetJumper>/assets
+)
+
 target_link_libraries(PlanetJumper PRIVATE SFML::Graphics SFML::Window SFML::System)

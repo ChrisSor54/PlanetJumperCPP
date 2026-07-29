@@ -24,15 +24,19 @@ void Game::run() {
     window.setFramerateLimit(60);
     window.setVerticalSyncEnabled(true);
 
-    addBody(Vector2d(50.f,  10.f), Vector2d(5.0, 0.0),  1000000.0, 10.0, sf::Color(255, 255, 255));
-    addBody(Vector2d(100.f, 10.f), Vector2d(-5.0, 0.0), 1000000.0, 10.0, sf::Color(255, 255, 255));
+    // Planetary System Initialization
+    //objects.push_back(std::make_unique<Player>(player));    
+
+    addBody(Vector2d(50.f,  30.f), Vector2d(-10.0, 0.0), 10000.0, 10.0, sf::Color(255, 255, 255));
+    //addBody(Vector2d(100.f, 20.f), Vector2d(0.0, 10.0), 1.0, 10.0, sf::Color(255, 255, 255));
 
     while (window.isOpen()) {
         
         float dt = clock.restart().asSeconds(); // get deltatime
-        dt = 0.016;
-        update(dt);
+        // dt = 0.016;
+        //dt = 1.0;
         handleInput(dt);
+        update(dt);
         draw(window);
         
     }
@@ -70,35 +74,43 @@ void Game::handleInput(double dt) {
     }
     moveCamera(dirInput * (CAMERA_SPEED * distanceScale * dt));
 
+
+
 };
 
 void Game::update(double dt) {
-    bool collisionOccurred = false;
+    player.parentObject = nullptr;
     for (auto& obj1 : objects) {
+        obj1->parentObject = nullptr;
         for (auto& obj2 : objects) {
             if (&obj1 == &obj2) {
                 continue;
             }
-            if (obj1->updateForces(*obj2, dt)) {
-                collisionOccurred = true;
-            }
+            obj1->updateForces(*obj2, dt);
         }
+        obj1->updateForces(player, dt);
+        player.updateForces(*obj1, dt);
     }
 
     for (auto& obj : objects) {
         obj->updatePosition(dt);
     }
 
-    if (collisionOccurred) {
-        for (auto& obj1 : objects) {
+    player.updatePosition(dt);
+
+    for (auto& obj1 : objects) {
+        if (obj1->hasCollided) {
             for (auto& obj2 : objects) {
                 if (&obj1 == &obj2) {
                     continue;
                 }
                 obj1->fixOverlap(*obj2, dt);
+                obj1->fixOverlap(player, dt);
             }
         }
     }
+
+    player.update(dt);
 };
 
 void Game::draw(sf::RenderWindow& window) {
@@ -106,6 +118,7 @@ void Game::draw(sf::RenderWindow& window) {
     for (auto& obj : objects) {
         obj->draw(window, distanceScale);
     }
+    player.draw(window, distanceScale);
 
     window.display();
 }
@@ -119,6 +132,7 @@ void Game::moveCamera(Vector2d offset) {
     for (auto& obj : objects) {
         obj->position -= offset;
     }
+    player.position -= offset;
 }
 
 float Game::setZoomScale(int newZoomScale) {

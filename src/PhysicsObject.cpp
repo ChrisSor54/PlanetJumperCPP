@@ -5,13 +5,18 @@
 //--------------------------------------------------------------------------------------------------
 
 
-// Constructor
+// Constructors
+PhysObj::PhysicsObject(double mass, double radius)
+    :PhysicsObject(Vector2d(0,0), Vector2d(0,0), mass, radius) {};
+
 PhysObj::PhysicsObject(Vector2d position, Vector2d velocity, double mass, double radius)
     : position(position), velocity(velocity), mass(mass), radius(radius) {
         static int numBodies = 0;
         this->id = numBodies;
         numBodies++;
         this->velocityBuffer = Vector2d(0.0, 0.0);
+        hasCollided = false;
+        elasticity = ELASTICITY;
     };
 
 // Public Methods ----------------------------------------------------------------------------------
@@ -23,22 +28,30 @@ void PhysObj::setPosition(Vector2d position) {
 /// @brief Updates velocity with the resulting forces of interactions between PhysicsObjects
 /// @param other The PhysicsObject being interacted with
 /// @param dt Deltatime
-/// @return Returns true if a collision occurred
-bool PhysObj::updateForces(PhysObj& other, double dt) {
+void PhysObj::updateForces(PhysObj& other, double dt) {
     Vector2d gravityVector = getGravityVector(other)*dt;
     double surfaceDist = getSurfaceDistance(other);
-    if (surfaceDist < -COLLISION_OVERLAP_MARGIN) {
+    hasCollided = false;
+    //std::cout << "Body: " << std::to_string(id) << std::endl;
+    if (checkCollision(other, dt)) {
         Vector2d collisionVector = getCollisionImpulse(other);
-        if (collisionVector.length() > 0.1/mass) {
-            applyImpulse(collisionVector);
-            std::cout << "Collision occured: " << std::to_string(id) << std::endl;
-            return true;
+        if (collisionVector.length() <= gravityVector.length()*mass) {
+            collisionVector = getCollisionImpulse(other, 0.0); // Nullify the collision
+            //std::cout << "Collision dampened" << std::endl;
+        } else {
+            //std::cout << "Collision : " << std::to_string(collisionVector.length()) << std::endl;
         }
+        applyImpulse(collisionVector);
+        hasCollided = true;
     } else if (surfaceDist > 0) {
+        //std::cout << "Gravity : " << std::to_string(gravityVector.length()) << std::endl;
         velocityBuffer += gravityVector;
-        return false;
+        if (!parentObject) {
+            parentObject = &other;
+        } else if (parentObject != &other && gravityVector.lengthSquared() > (getGravityVector(*parentObject)*dt).lengthSquared()) {
+            parentObject = &other;
+        }
     }
-    return false;
 };
 
 /// @brief Update the position of the object by its velocity
@@ -82,20 +95,27 @@ void PhysObj::fixOverlap(PhysObj& other, double dt) {
 bool PhysObj::checkCollision(PhysObj& other, double dt) {
     Vector2d futurePos = position + (velocity * dt);
     Vector2d otherFuturePos = other.position + (other.velocity * dt);
-    //double sqrRadii = pow(radius + other.radius - COLLISION_MARGIN, 2);
-    return (futurePos - otherFuturePos).length() <= (radius + other.radius);
+    double sqrRadii = pow(radius + other.radius, 2);
+    return (futurePos - otherFuturePos).lengthSquared() <= sqrRadii;
 };
 
 /// @brief Get the collision impulse vector
 /// @param other The colliding PhysicsObject
 /// @return The impulse vector
 Vector2d PhysObj::getCollisionImpulse(PhysObj& other) {
+    return getCollisionImpulse(other, elasticity);
+};
+
+/// @brief Get the collision impulse vector
+/// @param other The colliding PhysicsObject
+/// @param elasticity The elasticity of the collision
+/// @return The impulse vector
+Vector2d PhysObj::getCollisionImpulse(PhysObj& other, double elasticity) {
     Vector2d relativeVelocity = velocity - other.velocity;
-    double e = ELASTICITY;
     Vector2d collisionNormal = (position - other.position).normalized();
     double vn = relativeVelocity.dot(collisionNormal);
-    Vector2d baseImpulse = -(vn*(1 + e)/(1/mass + 1/other.mass)) * collisionNormal;
-    return baseImpulse;
+    Vector2d collisionImpulse = -(vn*(1 + elasticity)/(1/mass + 1/other.mass)) * collisionNormal;
+    return collisionImpulse;
 };
 
 /// @brief Get the distance between object surfaces
@@ -117,13 +137,12 @@ void PhysObj::applyImpulse(Vector2d impulseVector) {
 /// @return The acceleration vector of gravitational attraction
 Vector2d PhysObj::getGravityVector(PhysicsObject& other) {
     Vector2d dPosition = position - other.position;
-    double dist = sqrt(pow(dPosition.x, 2) + pow(dPosition.y, 2));
-    double sqrDist = pow(dist, 2);
+    double sqrDist = pow(dPosition.x, 2) + pow(dPosition.y, 2);
+    //double sqrDist = pow(dist, 2);
     if (sqrDist == 0) {
         return Vector2d(0.0, 0.0);
     }
-    Vector2d normal = dPosition/dist;
-    Vector2d gravityVector = normal * -sqrt(G*other.mass/sqrDist);
+    Vector2d gravityVector = dPosition.normalized() * -G*other.mass/sqrDist;
     return gravityVector;
 };
 
@@ -133,15 +152,12 @@ Vector2d PhysObj::getGravityVector(PhysicsObject& other) {
 // Body
 //--------------------------------------------------------------------------------------------------
 
-sf::Font Body::font;
-bool Body::fontLoaded = false;
 
 Body::Body(Vector2d position, Vector2d velocity, double mass, double radius, sf::Color color) 
-    : PhysicsObject(position, velocity, mass, radius), color(color), text(sf::Text(font, "", 10)) {
+    : PhysicsObject(position, velocity, mass, radius), color(color) {
     shape.setFillColor(color);
     shape.setRadius(radius);
-    text.setString(std::to_string(id));
-    text.setFillColor(color);
+    shape.setOrigin(sf::Vector2f(radius, radius));
 };
 
 void Body::draw(sf::RenderWindow& window, float distanceScale) {
@@ -149,14 +165,6 @@ void Body::draw(sf::RenderWindow& window, float distanceScale) {
     sf::Vector2f center = static_cast<sf::Vector2f>(window.getSize())/2.f;
     shape.setPosition(scaledPosition + center);
     shape.setRadius(radius / distanceScale);
+    shape.setOrigin(sf::Vector2f(radius/distanceScale, radius/distanceScale));
     window.draw(shape);
-    if (!fontLoaded) {
-        if (!font.openFromFile("Hack-Regular.ttf")) {
-            return;
-        }
-        fontLoaded = true;
-    }
-    text.setPosition(scaledPosition + center + sf::Vector2f(0.0, -radius - 2.0));
-    window.draw(text);
-    
 };
