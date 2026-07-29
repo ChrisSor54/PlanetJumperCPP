@@ -4,18 +4,43 @@
 
 using pl = Player;
 
+
 pl::Player() 
-    : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS), sprite(sf::Sprite(spriteTexture)) {
+    : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, 0), sprite(sf::Sprite(spriteTexture.getTexture())) {
     elasticity = 0;
     animSpeed = 0.25;
-    if (!spriteTexture.loadFromFile("assets/astronaut.png")) {
+
+    sf::Color playerColor(255, 0, 150);
+
+    // Initialize textures and sprite
+    sf::Texture baseTexture, maskTexture;
+    if (!baseTexture.loadFromFile("assets/astronaut.png")) {
         throw std::invalid_argument("Bad player texture");
     }
-    sprite.setTexture(spriteTexture);
+    
+    if (!maskTexture.loadFromFile("assets/astronaut_body_mask.png")) {
+        throw std::invalid_argument("Bad player mask");
+    }
+    spriteTexture = sf::RenderTexture(baseTexture.getSize());
+    spriteTexture.clear(sf::Color::Transparent);
+
+    sprite.setTexture(baseTexture, true);
+    sprite.setColor(sf::Color::White);
+    spriteTexture.draw(sprite);
+
+    sprite.setTexture(maskTexture, true);
+    sprite.setColor(playerColor);
+    spriteTexture.draw(sprite);
+    spriteTexture.display();
+
+    sprite.setColor(sf::Color::White);
+    sprite.setTexture(spriteTexture.getTexture(), true);
+
     playAnimation(Anim::WALKING);
     //sprite.setPosition(static_cast<sf::Vector2f>(position));
     sprite.setOrigin(sf::Vector2f(SPRITE_WIDTH/2.f, SPRITE_WIDTH/2.f));
-
+    //sprite.setColor(sf::Color(255, 0, 180));
+    
 
 }
 

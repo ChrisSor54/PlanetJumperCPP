@@ -7,10 +7,11 @@
 
 // Constructors
 PhysObj::PhysicsObject(double mass, double radius)
-    :PhysicsObject(Vector2d(0,0), Vector2d(0,0), mass, radius) {};
+    :PhysicsObject(Vector2d(0,0), Vector2d(0,0), mass, radius, DEFAULT_FRICTION_COEFFICIENT) {};
 
-PhysObj::PhysicsObject(Vector2d position, Vector2d velocity, double mass, double radius)
-    : position(position), velocity(velocity), mass(mass), radius(radius) {
+PhysObj::PhysicsObject(Vector2d position, Vector2d velocity, double mass, double radius, float frictionCoefficient)
+    : position(position), velocity(velocity), mass(mass), radius(radius), frictionCoefficient(frictionCoefficient) {
+        std::clamp(frictionCoefficient, 0.f, 1.f); // Clamp friction
         static int numBodies = 0;
         this->id = numBodies;
         numBodies++;
@@ -41,7 +42,21 @@ void PhysObj::updateForces(PhysObj& other, double dt) {
         } else {
             //std::cout << "Collision : " << std::to_string(collisionVector.length()) << std::endl;
         }
-        applyImpulse(collisionVector);
+        
+
+        // Apply frictional dampening
+        Vector2d totalVelocity = (velocity - other.velocity) + collisionVector;
+        Vector2d normal = (other.position-position).normalized();
+        Vector2d vNormal = normal * totalVelocity.dot(normal);
+        Vector2d vTangent = totalVelocity - vNormal;
+        vTangent *= 1.0 - other.frictionCoefficient; // Dampen the tangential velocity by the friction coefficient
+        Vector2d finalImpulse = (vNormal + vTangent) - (velocity - other.velocity); // Velocity will be added from the buffer
+        std::cout << std::to_string(vNormal.length()) << " | "
+            << std::to_string(vTangent.length()) << std::endl;
+        applyImpulse(finalImpulse);
+        std::cout << std::to_string(finalImpulse.length()) << " | "
+            << std::to_string(collisionVector.length()) << " | "
+            << std::to_string(other.frictionCoefficient) << std::endl;
         hasCollided = true;
     } else if (surfaceDist > 0) {
         //std::cout << "Gravity : " << std::to_string(gravityVector.length()) << std::endl;
@@ -152,8 +167,8 @@ Vector2d PhysObj::getGravityVector(PhysicsObject& other) {
 //--------------------------------------------------------------------------------------------------
 
 
-Body::Body(Vector2d position, Vector2d velocity, double mass, double radius, sf::Color color) 
-    : PhysicsObject(position, velocity, mass, radius), color(color) {
+Body::Body(Vector2d position, Vector2d velocity, double mass, double radius, float frictionCoefficient, sf::Color color) 
+    : PhysicsObject(position, velocity, mass, radius, frictionCoefficient), color(color)  {
     shape.setFillColor(color);
     shape.setRadius(radius);
     shape.setOrigin(sf::Vector2f(radius, radius));

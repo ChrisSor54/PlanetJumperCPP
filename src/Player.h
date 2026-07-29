@@ -34,7 +34,7 @@ class Player : public PhysObj {
 
         enum State state;
         double speed;
-        sf::Texture spriteTexture;
+        sf::RenderTexture spriteTexture;
         sf::Sprite sprite;
         float animSpeed;
         

@@ -8,6 +8,7 @@ const float CAMERA_SPEED = 100.0;
 const float CAMERA_LERP_SPEED = 10.0;
 
 
+
 //--------------------------------------------------------------------------------------------------
 // VARIABLES
 
@@ -34,6 +35,7 @@ void Game::run() {
     while (window.isOpen()) {
         
         dt = clock.restart().asSeconds(); // get deltatime
+        //std::cout << dt << std::endl;
         // dt = 0.016;
         //dt = 1.0;
         handleInput(dt);
@@ -93,7 +95,9 @@ void Game::update(double dt) {
             }
             obj1->updateForces(*obj2, dt);
         }
+        std::cout << "Body id: " << std::to_string(obj1->id) << std::endl;
         obj1->updateForces(player, dt);
+        std::cout << "Player:" << std::endl;
         player.updateForces(*obj1, dt);
     }
 
@@ -136,7 +140,7 @@ void Game::draw(sf::RenderWindow& window) {
 
 
 void Game::addBody(Vector2d position, Vector2d velocity, double mass, double radius, sf::Color color) {
-    objects.push_back(std::make_unique<Body>(position, velocity, mass, radius, color));
+    objects.push_back(std::make_unique<Body>(position, velocity, mass, radius, DEFAULT_FRICTION_COEFFICIENT, color));
 }
 
 
