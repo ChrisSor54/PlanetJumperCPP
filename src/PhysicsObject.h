@@ -1,7 +1,7 @@
 #pragma once
 #include "includes.h"
 
-const float DEFAULT_FRICTION_COEFFICIENT = 0.5;
+const float DEFAULT_FRICTION_COEFFICIENT = 1.0;
 
 
 
@@ -35,7 +35,7 @@ class PhysicsObject {
         virtual ~PhysicsObject() {};
 
     protected:
-
+        Vector2d velocityBuffer;
         float frictionCoefficient; // Must be between 0 and 1
 
         bool checkCollision(PhysicsObject& other, double dt);
@@ -45,9 +45,6 @@ class PhysicsObject {
         void setPosition(Vector2d newPos);
         Vector2d getGravityVector(PhysicsObject& other);
         
-
-    private:
-        Vector2d velocityBuffer;
 };
 
 class Body : public PhysicsObject {

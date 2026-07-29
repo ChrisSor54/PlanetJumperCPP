@@ -7,10 +7,11 @@ using pl = Player;
 
 pl::Player() 
     : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, 0), sprite(sf::Sprite(spriteTexture.getTexture())) {
+    speed = MOVE_SPEED;
     elasticity = 0;
     animSpeed = 0.25;
 
-    sf::Color playerColor(255, 0, 150);
+    sf::Color playerColor(175, 175, 175);
 
     // Initialize textures and sprite
     sf::Texture baseTexture, maskTexture;
@@ -44,8 +45,47 @@ pl::Player()
 
 }
 
+void pl::handleInput(sf::RenderWindow& window, double dt) {
+    Vector2d dirInput = Vector2d(0, 0);
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
+        dirInput.x -= 1.0;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
+        dirInput.x += 1.0;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+        dirInput.y -= 1.0;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
+        dirInput.y += 1.0;
+    }
+    if (state == State::GROUNDED) {
+        if (parentObject) {
+            Vector2d normal = (position - parentObject->position).normalized();
+            Vector2d tangent = normal.rotatedBy(sf::degrees(90.f));
+            Vector2d movementVector = tangent * dirInput.x * speed;
+            velocityBuffer += movementVector;
+            if (dirInput.x != 0) {
+                if (currentAnimation != Anim::WALKING) {
+                    playAnimation(Anim::WALKING);
+                }
+                animSpeed = animations[Anim::WALKING].animSpeed * speed/3;
+                flipSprite = dirInput.x == -1.0;
+            } else {
+                playAnimation(Anim::IDLE);
+            }
+        }
+    }
+
+} 
 
 void pl::update(double dt) {
+    if (hasCollided && parentObject) {
+        setState(State::GROUNDED);
+    } else {
+        setState(State::FLYING);
+    }
+
     switch (state) {
 
     }
@@ -58,6 +98,15 @@ void pl::update(double dt) {
     updateAnimation(dt);
 }
 
+void pl::setState(State newState) {
+    if (state != newState) {
+        state = newState;
+        switch (state) {
+
+        }
+    }
+}
+
 void pl::playAnimation(Anim anim) {
     int row = animations[anim].row;
     int column = animations[anim].column;
@@ -68,6 +117,7 @@ void pl::playAnimation(Anim anim) {
     ));
     currentAnimation = anim;
     animationTimer = 0;
+    
 }
 
 void pl::updateAnimation(float dt) {
@@ -93,12 +143,8 @@ void pl::updateAnimation(float dt) {
 void pl::draw(sf::RenderWindow& window, float distanceScale) {
     sf::Vector2f scaledPosition = static_cast<sf::Vector2f>(position)/distanceScale;
     sf::Vector2f center = static_cast<sf::Vector2f>(window.getSize())/2.f;
-    sprite.setScale(sf::Vector2f(1.f/distanceScale, 1.f/distanceScale));
-    // sf::CircleShape shape = sf::CircleShape();
-    // shape.setRadius(COLLISION_RADIUS/distanceScale);
-    // shape.setOrigin(sf::Vector2f(COLLISION_RADIUS/distanceScale, COLLISION_RADIUS/distanceScale));
-    // shape.setPosition(scaledPosition+center);
-    // window.draw(shape);
+    int flip = (flipSprite) ? -1.f : 1.f;
+    sprite.setScale(sf::Vector2f(flip/distanceScale, 1.f/distanceScale));
     sprite.setPosition(scaledPosition + center);
     sprite.setRotation(rotation.wrapUnsigned() + sf::degrees(90.f));
     window.draw(sprite);

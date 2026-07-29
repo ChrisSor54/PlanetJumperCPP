@@ -29,7 +29,7 @@ void Game::run() {
     // Planetary System Initialization
     //objects.push_back(std::make_unique<Player>(player));    
 
-    addBody(Vector2d(50.f,  30.f), Vector2d(-10.0, 0.0), 10000.0, 10.0, sf::Color(255, 255, 255));
+    addBody(Vector2d(200.f,  30.f), Vector2d(-10.0, 0.0), 10000000.0, 100.0, sf::Color(255, 255, 255));
     //addBody(Vector2d(100.f, 20.f), Vector2d(0.0, 10.0), 1.0, 10.0, sf::Color(255, 255, 255));
 
     while (window.isOpen()) {
@@ -66,20 +66,7 @@ void Game::handleInput(double dt) {
             }
         }
     }
-    Vector2d dirInput = Vector2d(0.0, 0.0);
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
-        dirInput.x -= 1.0;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
-        dirInput.x += 1.0;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
-        dirInput.y -= 1.0;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
-        dirInput.y += 1.0;
-    }
-    moveCamera(dirInput * (CAMERA_SPEED * distanceScale * dt));
+
 }
 
 void Game::update(double dt) {
@@ -95,11 +82,12 @@ void Game::update(double dt) {
             }
             obj1->updateForces(*obj2, dt);
         }
-        std::cout << "Body id: " << std::to_string(obj1->id) << std::endl;
         obj1->updateForces(player, dt);
-        std::cout << "Player:" << std::endl;
         player.updateForces(*obj1, dt);
     }
+
+    player.handleInput(window, dt);
+
 
     // Update positions based on velocities
     for (auto& obj : objects) {

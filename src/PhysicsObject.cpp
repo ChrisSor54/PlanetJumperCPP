@@ -51,21 +51,21 @@ void PhysObj::updateForces(PhysObj& other, double dt) {
         Vector2d vTangent = totalVelocity - vNormal;
         vTangent *= 1.0 - other.frictionCoefficient; // Dampen the tangential velocity by the friction coefficient
         Vector2d finalImpulse = (vNormal + vTangent) - (velocity - other.velocity); // Velocity will be added from the buffer
-        std::cout << std::to_string(vNormal.length()) << " | "
-            << std::to_string(vTangent.length()) << std::endl;
+        // std::cout << std::to_string(vNormal.length()) << " | "
+        //     << std::to_string(vTangent.length()) << std::endl;
         applyImpulse(finalImpulse);
-        std::cout << std::to_string(finalImpulse.length()) << " | "
-            << std::to_string(collisionVector.length()) << " | "
-            << std::to_string(other.frictionCoefficient) << std::endl;
+        // std::cout << std::to_string(finalImpulse.length()) << " | "
+        //     << std::to_string(collisionVector.length()) << " | "
+        //     << std::to_string(other.frictionCoefficient) << std::endl;
         hasCollided = true;
     } else if (surfaceDist > 0) {
         //std::cout << "Gravity : " << std::to_string(gravityVector.length()) << std::endl;
         velocityBuffer += gravityVector;
-        if (!parentObject) {
-            parentObject = &other;
-        } else if (parentObject != &other && gravityVector.lengthSquared() > (getGravityVector(*parentObject)*dt).lengthSquared()) {
-            parentObject = &other;
-        }
+    }
+    if (!parentObject) {
+        parentObject = &other;
+    } else if (parentObject != &other && gravityVector.lengthSquared() > (getGravityVector(*parentObject)*dt).lengthSquared()) {
+        parentObject = &other;
     }
 }
 

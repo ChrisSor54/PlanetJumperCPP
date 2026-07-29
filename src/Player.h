@@ -22,7 +22,7 @@ struct Animation {
     float animSpeed;
 };
 
-const double MOVE_SPEED = 100;
+const double MOVE_SPEED = 5;
 const double PLAYER_MASS = 7.0;
 const double COLLISION_RADIUS = 12.0;
 const float SPRITE_WIDTH = 32.0;
@@ -43,7 +43,7 @@ class Player : public PhysObj {
 
         State getState();
         void setState(State newState);
-        void handleInput(sf::Event inputEvent, double dt);
+        void handleInput(sf::RenderWindow& window, double dt);
         void update(double dt);
         void draw(sf::RenderWindow& window, float distanceScale) override;
 
