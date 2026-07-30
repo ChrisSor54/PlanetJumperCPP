@@ -27,16 +27,27 @@ void Game::run() {
     window.setVerticalSyncEnabled(true);
 
     // Planetary System Initialization
-    //objects.push_back(std::make_unique<Player>(player));    
 
-    addBody(Vector2d(200.f,  30.f), Vector2d(-10.0, 0.0), 10000000.0, 100.0, sf::Color(255, 255, 255));
-    //addBody(Vector2d(100.f, 20.f), Vector2d(0.0, 10.0), 1.0, 10.0, sf::Color(255, 255, 255));
+    addBody(Vector2d(70.f,  100.f), Vector2d(0.0, -400.0), 10000000.0, 100.0, sf::Color(255, 255, 255));    
+    addBody(Vector2d(1050.f, 0.f), Vector2d(0.0, 0.0), 1000000000.0, 100.0, sf::Color(255, 255, 255));
+
+    for (auto& obj1 : objects) {
+        for (auto& obj2 : objects) {
+            if (&obj1 == &obj2) {
+                continue;
+            }
+            obj1->fixOverlap(*obj2);
+        }
+        obj1->fixOverlap(player);
+        player.fixOverlap(*obj1);
+    }
 
     while (window.isOpen()) {
         
         dt = clock.restart().asSeconds(); // get deltatime
+        dt = std::min(dt, 1.f);
         //std::cout << dt << std::endl;
-        // dt = 0.016;
+        dt = 0.016;
         //dt = 1.0;
         handleInput(dt);
         update(dt);
@@ -61,7 +72,6 @@ void Game::handleInput(double dt) {
                     break;
                 case sf::Keyboard::Key::B:
                     player.applyImpulse(Vector2d(0, -100));
-                    std::cout << "test" << std::endl;
                     break;
             }
         }
@@ -70,11 +80,12 @@ void Game::handleInput(double dt) {
 }
 
 void Game::update(double dt) {
-    player.parentObject = nullptr; // Reset parentBodies to be determined on update
-
+    player.parentObject = nullptr; // Reset parentObject to be determined on update
+    player.hasCollided = false;
     // Loop through each body and update
     for (auto& obj1 : objects) {
         obj1->parentObject = nullptr;
+        obj1->hasCollided = false;
         // Update forces between bodies and the player
         for (auto& obj2 : objects) {
             if (&obj1 == &obj2) {
@@ -95,16 +106,17 @@ void Game::update(double dt) {
     }
     player.updatePosition(dt);
 
-    // If collisions occured, check and fix overlap issues
+    //If collisions occured, check and fix overlap issues
     for (auto& obj1 : objects) {
         if (obj1->hasCollided) {
             for (auto& obj2 : objects) {
                 if (&obj1 == &obj2) {
                     continue;
                 }
-                obj1->fixOverlap(*obj2, dt);
-                obj1->fixOverlap(player, dt);
+                obj1->fixOverlap(*obj2);
             }
+            obj1->fixOverlap(player);
+            player.fixOverlap(*obj1);
         }
     }
 
@@ -149,9 +161,9 @@ void Game::updateVelocities(PhysObj& referenceObject) {
 void Game::centerCamera(float lerpScale) {
     Vector2d targetPos = player.position;
     float t = lerpScale*dt;
-    std::clamp(t, 0.f, 1.f);
-    float lerpX = std::lerp(targetPos.x, 0, t);
-    float lerpY = std::lerp(targetPos.y, 0, t);
+    t = std::clamp(t, 0.f, 1.f);
+    float lerpX = std::lerp(0.f, targetPos.x, t);
+    float lerpY = std::lerp(0.f, targetPos.y, t);
     Vector2d lerpOffset(lerpX, lerpY);
     moveCamera(lerpOffset);    
 }

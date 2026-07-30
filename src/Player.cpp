@@ -10,6 +10,7 @@ pl::Player()
     speed = MOVE_SPEED;
     elasticity = 0;
     animSpeed = 0.25;
+    flipSprite = false;
 
     sf::Color playerColor(175, 175, 175);
 
@@ -66,9 +67,7 @@ void pl::handleInput(sf::RenderWindow& window, double dt) {
             Vector2d movementVector = tangent * dirInput.x * speed;
             velocityBuffer += movementVector;
             if (dirInput.x != 0) {
-                if (currentAnimation != Anim::WALKING) {
-                    playAnimation(Anim::WALKING);
-                }
+                playAnimation(Anim::WALKING);
                 animSpeed = animations[Anim::WALKING].animSpeed * speed/3;
                 flipSprite = dirInput.x == -1.0;
             } else {
@@ -96,6 +95,7 @@ void pl::update(double dt) {
         rotation = (position-parentObject->position).angle();
     }
     updateAnimation(dt);
+    //std::cout << std::to_string(static_cast<int>(state)) << std::endl;
 }
 
 void pl::setState(State newState) {
@@ -108,16 +108,24 @@ void pl::setState(State newState) {
 }
 
 void pl::playAnimation(Anim anim) {
-    int row = animations[anim].row;
-    int column = animations[anim].column;
+    playAnimation(anim, false);
+}
 
-    sprite.setTextureRect(sf::IntRect(
-        sf::Vector2i(column*SPRITE_WIDTH, row*SPRITE_WIDTH),
-        sf::Vector2i(SPRITE_WIDTH, SPRITE_WIDTH)
-    ));
+void pl::playAnimation(Anim anim, bool force) {
+    if (currentAnimation == anim  && !force) {
+        return;
+    }
+    if (currentAnimation != anim) {
+        int row = animations[anim].row;
+        int column = animations[anim].column;
+
+        sprite.setTextureRect(sf::IntRect(
+            sf::Vector2i(column*SPRITE_WIDTH, row*SPRITE_WIDTH),
+            sf::Vector2i(SPRITE_WIDTH, SPRITE_WIDTH)
+        ));
+    }
     currentAnimation = anim;
     animationTimer = 0;
-    
 }
 
 void pl::updateAnimation(float dt) {

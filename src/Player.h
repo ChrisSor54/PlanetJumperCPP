@@ -22,7 +22,7 @@ struct Animation {
     float animSpeed;
 };
 
-const double MOVE_SPEED = 5;
+const double MOVE_SPEED = 10;
 const double PLAYER_MASS = 7.0;
 const double COLLISION_RADIUS = 12.0;
 const float SPRITE_WIDTH = 32.0;
@@ -67,11 +67,12 @@ class Player : public PhysObj {
             .row = 0,
             .column = 0,
             .numSprites = 4,
-            .animSpeed = 4
+            .animSpeed = 6
         }}
     };
 
     void playAnimation(Anim anim);
+    void playAnimation(Anim anim, bool force);
     void updateState();
     void updateAnimation(float dt);
 
