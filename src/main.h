@@ -32,7 +32,7 @@ class Game {
         void addBody(Vector2d position, Vector2d velocity, double mass, double radius, sf::Color color);
 
         // Updates
-        void updateVelocities(PhysicsObject& referenceObject);
+        void updateRelativeVelocities(PhysicsObject& referenceObject);
 
         // Camera
         float setZoomScale(int newZoomScale);

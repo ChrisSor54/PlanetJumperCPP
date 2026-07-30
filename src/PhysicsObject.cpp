@@ -39,7 +39,10 @@ void PhysObj::updateForces(PhysObj& other, double dt) {
             collisionVector = getCollisionImpulse(other, 0.0); // Nullify the collision
         }
         // Apply frictional dampening
-        Vector2d totalVelocity = (velocity - other.velocity) + collisionVector;
+        //double res
+        Vector2d integratedForceVector = getIntegratedForces(other, dt, 1);
+
+        Vector2d totalVelocity = (velocity - other.velocity) + integratedForceVector;
         Vector2d normal = (other.position-position).normalized();
         Vector2d vNormal = normal * totalVelocity.dot(normal);
         Vector2d vTangent = totalVelocity - vNormal;
@@ -50,6 +53,7 @@ void PhysObj::updateForces(PhysObj& other, double dt) {
     } else if (surfaceDist > 0) {
         velocityBuffer += gravityVector;
     }
+    
     if (!parentObject) {
         parentObject = &other;
     } else if (parentObject != &other && gravityVector.lengthSquared() > (getGravityVector(*parentObject)*dt).lengthSquared()) {
@@ -101,6 +105,74 @@ void PhysObj::applyImpulse(Vector2d impulseVector) {
 
 // Protected Methods -------------------------------------------------------------------------------
 
+void PhysObj::updateVirtualForces(PhysObj& other, double dt) {
+    Vector2d gravityVector = getGravityVector(other)*dt;
+    double surfaceDist = getSurfaceDistance(other);
+    //std::cout << "Body: " << std::to_string(id) << std::endl;
+
+    if (checkCollision(other, dt)) {
+        Vector2d collisionVector = getCollisionImpulse(other);
+        // if (collisionVector.length() <= gravityVector.length()*mass) {
+        //     collisionVector = getCollisionImpulse(other, 0.0); // Nullify the collision
+        // }
+        // Apply frictional dampening
+        // Vector2d totalVelocity = (velocity - other.velocity) + collisionVector;
+        // Vector2d normal = (other.position-position).normalized();
+        // Vector2d vNormal = normal * totalVelocity.dot(normal);
+        // Vector2d vTangent = totalVelocity - vNormal;
+        // vTangent *= (1.0 - other.frictionCoefficient); // Dampen the tangential velocity by the friction coefficient
+        // Vector2d finalImpulse = (vNormal + vTangent ) - (velocity - other.velocity); // Velocity will be added from the buffer
+        applyImpulse(collisionVector);
+        hasCollided = true;
+    } else if (surfaceDist > 0) {
+        velocityBuffer += gravityVector;
+    }
+    
+    if (!parentObject) {
+        parentObject = &other;
+    } else if (parentObject != &other && gravityVector.lengthSquared() > (getGravityVector(*parentObject)*dt).lengthSquared()) {
+        parentObject = &other;
+    }
+}
+
+
+Vector2d PhysObj::getIntegratedForces(PhysObj& other, double dt, double resolution) {
+    // Store current values
+
+    Vector2d sPosition = position;
+    Vector2d sVelocity = velocity;
+    Vector2d sVelocityBuffer = velocityBuffer;
+    Vector2d soPosition = other.position;
+    Vector2d soVelocity = other.velocity;
+    Vector2d soVelocityBuffer = other.velocityBuffer;
+
+    velocityBuffer = Vector2d(0,0);
+    other.velocityBuffer = Vector2d(0,0);
+
+    resolution = std::max(resolution, 1.0);
+    double delta =  dt/resolution;
+    for (int i=0; i < resolution; i++) {
+        updateVirtualForces(other, delta);
+        other.updateVirtualForces(*this, delta);
+        updatePosition(delta);
+        other.updatePosition(delta);
+        //fixOverlap(other);
+        //other.fixOverlap(*this);
+    }
+
+    Vector2d finalImpulse = velocity - sVelocity;
+
+    // Restore starting values
+    position = sPosition;
+    velocity = sVelocity;
+    velocityBuffer = sVelocityBuffer;
+    other.position = soPosition;
+    other.velocity = soVelocity;
+    other.velocityBuffer = soVelocityBuffer;
+    
+    return finalImpulse;
+}
+
 /// @brief Checks if this PhyicsObject will collide with other
 /// @param other The PhysicsObject to check with
 /// @param dt Deltatime
@@ -112,16 +184,16 @@ bool PhysObj::checkCollision(PhysObj& other, double dt) {
 /// @brief Checks if this PhyicsObject will collide with other
 /// @param other The PhysicsObject to check with
 /// @param dt Deltatime
-/// @param delta How many integrations to check collision along
+/// @param resolution How many subdivisions to check collision along
 /// @return Whether a collision will occur
-bool PhysObj::checkCollision(PhysObj& other, double dt, double delta) {
-    if (delta <= 0) {
-        throw std::invalid_argument("Delta must be greater than 0");
+bool PhysObj::checkCollision(PhysObj& other, double dt, double resolution) {
+    if (resolution <= 0) {
+        throw std::invalid_argument("deltaScale must be greater than 0");
     }
     double step = 0;
     double sqrRadii = pow(radius + other.radius, 2);
     while (step < dt) {
-        step += dt/delta;
+        step += dt/resolution;
         Vector2d futurePos = position + (velocity * step);
         Vector2d otherFuturePos = other.position + (other.velocity * step);
         if ((futurePos-otherFuturePos).lengthSquared() <= sqrRadii) {
@@ -146,8 +218,8 @@ Vector2d PhysObj::getCollisionImpulse(PhysObj& other) {
 Vector2d PhysObj::getCollisionImpulse(PhysObj& other, double elasticity) {
     Vector2d relativeVelocity = velocity - other.velocity;
     Vector2d collisionNormal = (position - other.position).normalized();
-    double vn = relativeVelocity.dot(collisionNormal);
-    Vector2d collisionImpulse = -(vn*(1 + elasticity)/(1/mass + 1/other.mass)) * collisionNormal;
+    double vNormal = relativeVelocity.dot(collisionNormal);
+    Vector2d collisionImpulse = -(vNormal*(1 + elasticity)/(1/mass + 1/other.mass)) * collisionNormal;
     return collisionImpulse;
 }
 
@@ -162,13 +234,13 @@ double PhysObj::getSurfaceDistance(PhysObj& other) {
 /// @param other The other PhysicsObject
 /// @return The acceleration vector of gravitational attraction
 Vector2d PhysObj::getGravityVector(PhysicsObject& other) {
-    Vector2d dPosition = position - other.position;
-    double sqrDist = pow(dPosition.x, 2) + pow(dPosition.y, 2);
+    Vector2d normal = other.position - position;
+    double sqrDist = normal.lengthSquared();
     //double sqrDist = pow(dist, 2);
     if (sqrDist == 0) {
         return Vector2d(0, 0);
     }
-    Vector2d gravityVector = dPosition.normalized() * -G*other.mass/sqrDist;
+    Vector2d gravityVector = normal.normalized() * G*other.mass/sqrDist;
     return gravityVector;
 }
 

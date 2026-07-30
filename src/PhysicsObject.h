@@ -2,13 +2,13 @@
 #include "includes.h"
 
 const float DEFAULT_FRICTION_COEFFICIENT = 0.6;
-const float GROUNDED_MARGIN = 0.1;
+const float GROUNDED_MARGIN = 0.0;
+const double COLLISION_MARGIN = 0.5;
 
 
 
 class PhysicsObject {
     static constexpr float ELASTICITY = 0.8;
-    static constexpr float COLLISION_DAMP_MARGIN = 1.0;
     
     public:
         int id;
@@ -42,8 +42,10 @@ class PhysicsObject {
         Vector2d velocityBuffer;
         float frictionCoefficient; // Must be between 0 and 1
 
+        void updateVirtualForces(PhysicsObject& other, double dt);
+        Vector2d getIntegratedForces(PhysicsObject& other, double dt, double resolution);
         bool checkCollision(PhysicsObject& other, double dt);
-        bool checkCollision(PhysicsObject& other, double dt, double delta);
+        bool checkCollision(PhysicsObject& other, double dt, double resolution);
         Vector2d getCollisionImpulse(PhysicsObject& other);
         Vector2d getCollisionImpulse(PhysicsObject& other, double elasticity);
         void setPosition(Vector2d newPos);

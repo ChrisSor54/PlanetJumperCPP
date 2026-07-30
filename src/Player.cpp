@@ -107,6 +107,10 @@ void pl::setState(State newState) {
     }
 }
 
+State pl::getState() {
+    return state;
+}
+
 void pl::playAnimation(Anim anim) {
     playAnimation(anim, false);
 }

@@ -28,8 +28,8 @@ void Game::run() {
 
     // Planetary System Initialization
 
-    addBody(Vector2d(70.f,  100.f), Vector2d(0.0, -400.0), 10000000.0, 100.0, sf::Color(255, 255, 255));    
-    addBody(Vector2d(1050.f, 0.f), Vector2d(0.0, 0.0), 1000000000.0, 100.0, sf::Color(255, 255, 255));
+    addBody(Vector2d(100.f, 0.f), Vector2d(0, 0), 100000000.0, 30.0, sf::Color(255, 255, 255));    
+    //addBody(Vector2d(200.f, 0.f), Vector2d(0, 0), 1000000000.0, 30.0, sf::Color(255, 255, 255));
 
     for (auto& obj1 : objects) {
         for (auto& obj2 : objects) {
@@ -47,7 +47,7 @@ void Game::run() {
         dt = clock.restart().asSeconds(); // get deltatime
         dt = std::min(dt, 1.f);
         //std::cout << dt << std::endl;
-        dt = 0.016;
+        // dt = 0.016;
         //dt = 1.0;
         handleInput(dt);
         update(dt);
@@ -76,54 +76,86 @@ void Game::handleInput(double dt) {
             }
         }
     }
+    if (player.getState() == State::DEAD) {
+        Vector2d dirInput = Vector2d(0, 0);
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
+            dirInput.x -= 1.0;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
+            dirInput.x += 1.0;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
+            dirInput.y -= 1.0;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
+            dirInput.y += 1.0;
+        }
+        if (dirInput.lengthSquared() != 0) {
+            moveCamera(dirInput * static_cast<double>(CAMERA_SPEED*dt*distanceScale));
+        }
 
+    }
+    
 }
 
 void Game::update(double dt) {
+    bool playerActive = player.getState() != State::DEAD;
+
+    double resolution = 1;
+
     player.parentObject = nullptr; // Reset parentObject to be determined on update
     player.hasCollided = false;
-    // Loop through each body and update
-    for (auto& obj1 : objects) {
-        obj1->parentObject = nullptr;
-        obj1->hasCollided = false;
-        // Update forces between bodies and the player
-        for (auto& obj2 : objects) {
-            if (&obj1 == &obj2) {
-                continue;
-            }
-            obj1->updateForces(*obj2, dt);
-        }
-        obj1->updateForces(player, dt);
-        player.updateForces(*obj1, dt);
-    }
 
-    player.handleInput(window, dt);
-
-
-    // Update positions based on velocities
-    for (auto& obj : objects) {
-        obj->updatePosition(dt);
-    }
-    player.updatePosition(dt);
-
-    //If collisions occured, check and fix overlap issues
-    for (auto& obj1 : objects) {
-        if (obj1->hasCollided) {
+    double delta = dt/resolution;
+    for (int i=0; i<resolution; i++) {
+        // Loop through each body and update
+        for (auto& obj1 : objects) {
+            obj1->parentObject = nullptr;
+            obj1->hasCollided = false;
+            // Update forces between bodies and the player
             for (auto& obj2 : objects) {
                 if (&obj1 == &obj2) {
                     continue;
                 }
-                obj1->fixOverlap(*obj2);
+                obj1->updateForces(*obj2, delta);
             }
-            obj1->fixOverlap(player);
-            player.fixOverlap(*obj1);
+            if (playerActive) {
+                obj1->updateForces(player, delta);
+                player.updateForces(*obj1, delta);
+            }        
+        }
+
+        if (playerActive) player.handleInput(window, dt);
+
+        // Update positions based on velocities
+        for (auto& obj : objects) {
+            obj->updatePosition(delta);
+        }
+        if (playerActive) player.updatePosition(delta);
+
+        // If collisions occured, check and fix overlap issues
+        for (auto& obj1 : objects) {
+            if (obj1->hasCollided) {
+                for (auto& obj2 : objects) {
+                    if (&obj1 == &obj2) {
+                        continue;
+                    }
+                    obj1->fixOverlap(*obj2);
+                }
+                if (playerActive) {
+                    obj1->fixOverlap(player);
+                    player.fixOverlap(*obj1);
+                }
+                
+            }
+        }
+
+        if (playerActive) {
+            player.update(delta);
+            updateRelativeVelocities(player);
+            centerCamera(CAMERA_LERP_SPEED);
         }
     }
-
-    player.update(dt);
-
-    updateVelocities(player);
-    centerCamera(CAMERA_LERP_SPEED);
 }
 
 void Game::draw(sf::RenderWindow& window) {
@@ -131,8 +163,10 @@ void Game::draw(sf::RenderWindow& window) {
     for (auto& obj : objects) {
         obj->draw(window, distanceScale);
     }
-    player.draw(window, distanceScale);
+    if (player.getState() != State::DEAD) {
+        player.draw(window, distanceScale);
 
+    }
     window.display();
 }
 
@@ -146,7 +180,7 @@ void Game::addBody(Vector2d position, Vector2d velocity, double mass, double rad
 
 // Updates -----------------------------------------------------------------------------------------
 
-void Game::updateVelocities(PhysObj& referenceObject) {
+void Game::updateRelativeVelocities(PhysObj& referenceObject) {
     Vector2d refVelocity = referenceObject.velocity;
     for (auto& obj : objects) {
         obj->velocity -= refVelocity;
