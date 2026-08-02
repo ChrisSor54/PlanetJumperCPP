@@ -6,13 +6,10 @@ using pl = Player;
 
 
 pl::Player() 
-    : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, 0), sprite(sf::Sprite(spriteTexture.getTexture())) {
-    speed = MOVE_SPEED;
-    elasticity = 0;
-    animSpeed = 0.25;
-    flipSprite = false;
+    : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, sf::degrees(0), 1.0), sprite(sf::Sprite(spriteTexture.getTexture())) {
+    elasticity = PLAYER_ELASTICITY;
 
-    sf::Color playerColor(175, 175, 175);
+    sf::Color playerColor(250, 250, 250);
 
     // Initialize textures and sprite
     sf::Texture baseTexture, maskTexture;
@@ -37,127 +34,300 @@ pl::Player()
 
     sprite.setColor(sf::Color::White);
     sprite.setTexture(spriteTexture.getTexture(), true);
-
-    playAnimation(Anim::WALKING);
-    //sprite.setPosition(static_cast<sf::Vector2f>(position));
     sprite.setOrigin(sf::Vector2f(SPRITE_WIDTH/2.f, SPRITE_WIDTH/2.f));
-    //sprite.setColor(sf::Color(255, 0, 180));
-    
 
+    setState(State::FLYING);
+    playAnimation(Anim::FLYING);
 }
 
-void pl::handleInput(sf::RenderWindow& window, double dt) {
-    Vector2d dirInput = Vector2d(0, 0);
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
-        dirInput.x -= 1.0;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
-        dirInput.x += 1.0;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
-        dirInput.y -= 1.0;
-    }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
-        dirInput.y += 1.0;
-    }
-    if (state == State::GROUNDED) {
-        if (parentObject) {
-            Vector2d normal = (position - parentObject->position).normalized();
-            Vector2d tangent = normal.rotatedBy(sf::degrees(90.f));
-            Vector2d movementVector = tangent * dirInput.x * speed;
-            velocityBuffer += movementVector;
-            if (dirInput.x != 0) {
-                playAnimation(Anim::WALKING);
-                animSpeed = animations[Anim::WALKING].animSpeed * speed/3;
-                flipSprite = dirInput.x == -1.0;
-            } else {
-                playAnimation(Anim::IDLE);
-            }
-        }
-    }
+// Getters & Setters -------------------------------------------------------------------------------
 
-} 
-
-void pl::update(double dt) {
-    if (hasCollided && parentObject) {
-        setState(State::GROUNDED);
-    } else {
-        setState(State::FLYING);
-    }
-
-    switch (state) {
-
-    }
-
-
-
-    if (parentObject) {
-        rotation = (position-parentObject->position).angle();
-    }
-    updateAnimation(dt);
-    //std::cout << std::to_string(static_cast<int>(state)) << std::endl;
+State pl::getState() {
+    return state;
 }
 
 void pl::setState(State newState) {
     if (state != newState) {
         state = newState;
         switch (state) {
-
+            case (State::FLYING):
+                playAnimation(Anim::FLYING);
+                break;
         }
     }
 }
 
-State pl::getState() {
-    return state;
+// Updates -----------------------------------------------------------------------------------------
+#pragma region Updates
+
+void pl::update(double dt) {
+    smokeSpawnCooldown -= dt;
+    if (isGrounded) {
+        setState(State::GROUNDED);
+        rotationalVelocity = sf::degrees(0);
+    } else {
+        setState(State::FLYING);
+        jumpCharge == 0.0;
+    }
+
+    switch (state) {
+
+    }
+
+    if (state == State::GROUNDED && parentObject) {
+        rotation = (position-parentObject->position).angle();
+    }
+    updateAnimation(dt);
+    //std::cout << std::to_string(static_cast<int>(state)) << std::endl;
 }
 
+void pl::updateGravity(PhysObj& other, double dt) {
+    PhysObj::updateGravity(other, dt);
+    // Instead of calculating gravity for each particle, just apply the player's gravity
+    Vector2d gravityVector = getGravityVector(other)*dt;
+    for (auto& particle : smokeArray) {
+        if (particle.lifespan <= 0) continue;
+        particle.vel += (sf::Vector2f) gravityVector;
+    }
+}
+
+#pragma endregion
+
+
+// Input & Actions ---------------------------------------------------------------------------------
+#pragma region Input & Actions
+
+void pl::handleInput(InputManager& input, sf::RenderWindow& window, double dt) {
+    Vector2d dirInput = static_cast<Vector2d>(input.directionalInput);
+    if (dirInput.x != 0)  {
+        flipSprite = dirInput.x < 0;
+    }
+    if (state == State::GROUNDED && parentObject) {
+        if (input.inputStates[InputAction::Jump].pressed) {
+            chargeJump(dt);
+        } else if (jumpCharge > 0) {  
+            jump();
+        } else {
+            Vector2d normal = (position - parentObject->position).normalized();
+            Vector2d tangent = normal.rotatedBy(sf::degrees(90.f));
+            double parentSurfaceVelocity = parentObject->rotationalVelocity.asRadians()*(radius+parentObject->radius);
+            Vector2d relVelocity = velocity - (parentObject->velocity + tangent*(parentSurfaceVelocity));
+            double moveSpeed = speed;
+            double maxMoveSpeed = MOVE_SPEED;
+            if (input.inputStates[InputAction::Walk].pressed) {
+                moveSpeed /= 2.5;
+                maxMoveSpeed /= 2.5;
+            }
+            Vector2d movementVector = tangent.normalized() * dirInput.x * moveSpeed;
+            Vector2d rvTangent = tangent * relVelocity.dot(tangent);
+            if (dirInput.x != 0) {
+                if ((rvTangent + movementVector).length() > maxMoveSpeed) {
+                    double clampedSpeed = std::max(0.0, static_cast<double>(maxMoveSpeed - rvTangent.length()));
+                    movementVector = movementVector.normalized() * clampedSpeed;
+                }
+                velocity += movementVector;
+                playAnimation(Anim::WALKING, false, moveSpeed/20);
+            } else {
+                playAnimation(Anim::IDLE);
+            }
+        }
+    } else if (!input.inputStates[InputAction::DEBUG].pressed) {
+        if (input.inputStates[InputAction::Walk].pressed && parentObject) {
+            Vector2d retrograde = parentObject->velocity - velocity;
+            if (retrograde.lengthSquared() > 1.0) {
+                fly(retrograde.normalized(), dt);
+            }
+        } else if (dirInput.lengthSquared() > 0) { // Flying
+            sf::Angle viewRotation = window.getView().getRotation();
+            Vector2d flyDirection = dirInput.rotatedBy(viewRotation);
+            fly(flyDirection, dt);
+        }
+    }
+}
+
+void pl::fly(Vector2d direction, double dt) {
+    Vector2d thrustVector = (direction.normalized()*THRUSTER_STRENGTH*dt);
+    velocity += thrustVector;
+    double rotationDifference = (thrustVector.angle() - rotation).wrapSigned().asDegrees();
+    rotation = sf::degrees(rotation.asDegrees() + std::lerp(0.0, rotationDifference, 0.2));
+    playAnimation(Anim::FLYING);
+    if (smokeSpawnCooldown <= 0) {
+        int numParticles = 1;
+        if (dt/SMOKE_SPAWN_COOLDOWN > 1) {
+            numParticles = (int) floor(dt/SMOKE_SPAWN_COOLDOWN);
+        }
+        for (int i=0; i<numParticles; i++) {
+            sf::Angle angleOffset = sf::degrees(((double) 2*rand()/(double)RAND_MAX - 1.0)*SMOKE_ANGLE_OFFSET);
+            float smokeVelocity = ((double) rand()/(double)RAND_MAX )*(MAX_SMOKE_VELOCITY-MIN_SMOKE_VELOCITY) + MIN_SMOKE_VELOCITY;
+            spawnSmokeParticle(smokeVelocity, angleOffset, SMOKE_LIFESPAN);
+        }
+        smokeSpawnCooldown = SMOKE_SPAWN_COOLDOWN;
+    }
+    rotationalVelocity = sf::degrees(0);
+}
+
+
+void pl::chargeJump(double dt) {
+    jumpCharge += JUMP_CHARGE_SPEED*dt;
+    jumpCharge = std::min(jumpCharge, 1.f);
+    playAnimation(Anim::CHARGING);
+    float randX = ((double) 2*rand()/(double)RAND_MAX - 1.0)*CHARGE_SPRITE_OFFSET*jumpCharge;
+    float randY = ((double) 2*rand()/(double)RAND_MAX - 1.0)*CHARGE_SPRITE_OFFSET*jumpCharge;
+    // std::cout << std::to_string(jumpCharge) << " | " << std::to_string(randX) << " , " << std::to_string(randY) << std::endl;
+    sf::Vector2f chargeSpriteOffset = sf::Vector2f(randX, randY);
+    sprite.setOrigin(SPRITE_ORIGIN + chargeSpriteOffset);
+    if (jumpCharge == 1.0) {
+        for (int i=0; i<4; i++) {
+            float angleOffset = ((double) rand()/(double)RAND_MAX)*15.f;
+            float thrust = ((double) rand()/(double)RAND_MAX)*THRUSTER_STRENGTH/15;
+            spawnSmokeParticle(thrust, sf::degrees(90 - angleOffset), SMOKE_LIFESPAN/4);
+            spawnSmokeParticle(thrust, sf::degrees(-90 + angleOffset), SMOKE_LIFESPAN/4);
+        }
+    }
+    // int colorOffset = (int) (255.0*jumpCharge/5);
+    // sf::Color chargeColor = (jumpCharge == 100.0) ? sf::Color(255,100,100) : sf::Color(255, 255 - colorOffset, 255 - colorOffset);
+    // sprite.setColor(chargeColor);
+}
+
+
+void pl::jump() {
+    if (state !=State::GROUNDED || !parentObject) {
+        return;
+    }
+    Vector2d normal = (position - parentObject->position).normalized();
+    double jumpChargeValue = (MAX_JUMP_CHARGE-MIN_JUMP_CHARGE)*jumpCharge + MIN_JUMP_CHARGE;
+    std::cout << std::to_string(jumpChargeValue) << std::endl;
+    Vector2d jumpImpulse = normal*jumpChargeValue;
+    applyImpulse(jumpImpulse);
+    parentObject->applyImpulse(-jumpImpulse);
+    for (int i=0; i<50; i++) {
+        float angleOffset = ((double) rand()/(double)RAND_MAX)*10.f;
+        float thrust = -((double) rand()/(double)RAND_MAX)*THRUSTER_STRENGTH/6*jumpCharge;
+        spawnSmokeParticle(thrust, sf::degrees(angleOffset), SMOKE_LIFESPAN);
+    }
+    jumpCharge = 0.0;
+}
+
+#pragma endregion
+
+// Animations & Drawing ----------------------------------------------------------------------------
+#pragma region Animations & Drawing
+
 void pl::playAnimation(Anim anim) {
-    playAnimation(anim, false);
+    playAnimation(anim, false, animations[anim].animSpeed);
 }
 
 void pl::playAnimation(Anim anim, bool force) {
-    if (currentAnimation == anim  && !force) {
+    playAnimation(anim, force, animations[anim].animSpeed);
+}
+
+void pl::playAnimation(Anim anim, bool force, float customSpeed) {
+    if (currentAnimation == anim  && !force && customSpeed == animSpeed ) {
         return;
     }
-    if (currentAnimation != anim) {
-        int row = animations[anim].row;
-        int column = animations[anim].column;
-
-        sprite.setTextureRect(sf::IntRect(
-            sf::Vector2i(column*SPRITE_WIDTH, row*SPRITE_WIDTH),
-            sf::Vector2i(SPRITE_WIDTH, SPRITE_WIDTH)
-        ));
+    if (currentAnimation != anim || force) {
+        animationTimer = 0;
     }
     currentAnimation = anim;
-    animationTimer = 0;
+    animSpeed = customSpeed;
+    
 }
 
 void pl::updateAnimation(float dt) {
     float previousTimer = animationTimer;
-    animationTimer += animations[currentAnimation].animSpeed*dt;
+    animationTimer += animSpeed*dt;
     int animLength = animations[currentAnimation].numSprites;
+    int spriteIndex = floor(animationTimer);
+    int row = animations[currentAnimation].row;
+    int column = animations[currentAnimation].column;
 
     if (floor(previousTimer) != floor(animationTimer)) {
         animationTimer = fmod(animationTimer, animLength);
-        int spriteIndex = floor(animationTimer);
-        int row = animations[currentAnimation].row;
-        int column = animations[currentAnimation].column;
-
-        sprite.setTextureRect(sf::IntRect(
-            sf::Vector2i((column + spriteIndex)*SPRITE_WIDTH, row*SPRITE_WIDTH),
-            sf::Vector2i(SPRITE_WIDTH, SPRITE_WIDTH)
-        ));
+        spriteIndex = floor(animationTimer);
+        row = animations[currentAnimation].row;
+        column = animations[currentAnimation].column;
     }
+
+    sprite.setTextureRect(sf::IntRect(
+        sf::Vector2i((column + spriteIndex)*SPRITE_WIDTH, row*SPRITE_WIDTH),
+        sf::Vector2i(SPRITE_WIDTH, SPRITE_WIDTH)
+    ));
 
 }
 
-
-void pl::draw(sf::RenderWindow& window, float distanceScale) {
-    sf::Vector2f scaledPosition = static_cast<sf::Vector2f>(position)/distanceScale;
+void pl::draw(sf::RenderWindow& window) {
     sf::Vector2f center = static_cast<sf::Vector2f>(window.getSize())/2.f;
     int flip = (flipSprite) ? -1.f : 1.f;
-    sprite.setScale(sf::Vector2f(flip/distanceScale, 1.f/distanceScale));
-    sprite.setPosition(scaledPosition + center);
+    if (jumpCharge == 0) {
+        sprite.setOrigin(SPRITE_ORIGIN);
+        sprite.setColor(sf::Color(255,255,255));
+    }
+    sprite.setScale(sf::Vector2f(flip, 1.f));
+    sprite.setPosition(static_cast<sf::Vector2f>(position) + center);
     sprite.setRotation(rotation.wrapUnsigned() + sf::degrees(90.f));
     window.draw(sprite);
 }
+
+void pl::drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale) {
+    Vector2d relativeVelocity = velocity - referenceVelocity;
+    Vector2d center = static_cast<Vector2d>(window.getSize())/2.0;
+
+    sf::Color lineColor = sf::Color(255,0,0);
+
+    sf::VertexArray velocityLine(sf::PrimitiveType::Lines, 2); 
+    velocityLine[0].position = static_cast<sf::Vector2f>(position + center);
+    velocityLine[0].color = lineColor;
+    velocityLine[1].position = static_cast<sf::Vector2f>(position + center + relativeVelocity*scale);
+    velocityLine[1].color = lineColor;
+
+    window.draw(velocityLine);
+}
+
+#pragma endregion
+
+// Smoke -------------------------------------------------------------------------------------------
+#pragma region Smoke
+
+void pl::spawnSmokeParticle(double smokeVelocity, sf::Angle angleOffset, double lifespan) {
+    Vector2d dir = Vector2d(-(COLLISION_RADIUS+SMOKE_RADIUS+1),0).rotatedBy(rotation + angleOffset);
+    Vector2d velocityVector = dir*smokeVelocity + velocity;
+    float flip = (flipSprite) ? -1 : 1;
+    sf::Vector2f smokePosition(-COLLISION_RADIUS/1.75, -flip*COLLISION_RADIUS/2.5);
+    smokePosition= (sf::Vector2f) position + smokePosition.rotatedBy(rotation);
+    smokeIndex = (smokeIndex + 1) % MAX_SMOKE;
+    smokeArray[smokeIndex] = { smokePosition , (sf::Vector2f) velocityVector, (float) lifespan, (float) lifespan};
+}
+
+void pl::updateSmoke(double dt) {
+    for (int i=0;i<MAX_SMOKE;i++) {
+        if (smokeArray[i].lifespan > 0) {
+            smokeArray[i].pos += smokeArray[i].vel*(float)dt;
+            smokeArray[i].lifespan -= dt;
+        }
+    }
+}
+
+
+void pl::drawSmoke(sf::RenderWindow& window) {
+    sf::CircleShape smokeShape;
+    smokeShape.setPointCount(10);
+    sf::Vector2f center = static_cast<sf::Vector2f>(window.getSize())/2.f;
+    float size = SMOKE_RADIUS;
+    smokeShape.setRadius(size);
+    
+    smokeShape.setOrigin(sf::Vector2f(size, size));
+
+    for (const auto& particle : smokeArray) {
+        if (particle.lifespan <= 0) continue;
+
+        float alpha = (particle.lifespan / particle.totalLifespan) * 255.f;
+        alpha = std::min(alpha, 255.f);
+        sf::Color color(255, 255, 255, static_cast<int>(alpha));
+        smokeShape.setFillColor(color);
+        sf::Vector2f scaledPosition = static_cast<sf::Vector2f>(particle.pos);
+        smokeShape.setPosition(scaledPosition + center);
+        window.draw(smokeShape);
+    }
+}
+
+#pragma endregion

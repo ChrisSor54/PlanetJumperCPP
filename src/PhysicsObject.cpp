@@ -7,67 +7,111 @@
 
 // Constructors
 PhysObj::PhysicsObject(double mass, double radius)
-    :PhysicsObject(Vector2d(0,0), Vector2d(0,0), mass, radius, DEFAULT_FRICTION_COEFFICIENT) {};
+    :PhysicsObject(Vector2d(0,0), Vector2d(0,0), mass, radius, sf::degrees(0), DEFAULT_FRICTION_COEFFICIENT) {};
 
-PhysObj::PhysicsObject(Vector2d position, Vector2d velocity, double mass, double radius, float frictionCoefficient)
-    : position(position), velocity(velocity), mass(mass), radius(radius), frictionCoefficient(frictionCoefficient) {
-        frictionCoefficient = std::clamp(frictionCoefficient, 0.f, 1.f); // Clamp friction
-        static int numBodies = 0;
-        this->id = numBodies;
-        numBodies++;
-        this->velocityBuffer = Vector2d(0, 0);
-        hasCollided = false;
-        elasticity = ELASTICITY;
-    }
+PhysObj::PhysicsObject(Vector2d position, Vector2d velocity, double mass, double radius, sf::Angle rotationalVelocity, float surfaceFriction)
+    : position(position), velocity(velocity), mass(mass), radius(radius), rotationalVelocity(rotationalVelocity), surfaceFriction(surfaceFriction) {
+    
+    surfaceFriction = std::clamp(surfaceFriction, 0.f, 1.f); // Clamp friction
+    static int numBodies = 0;
+    this->id = numBodies;
+    numBodies++;
+    this->velocityBuffer = Vector2d(0, 0);
+    hasCollided = false;
+    elasticity = ELASTICITY;
+}
 
 // Public Methods ----------------------------------------------------------------------------------
 
-void PhysObj::setPosition(Vector2d position) {
-    this->position = position;
-}
+// Updates -----------------------------------------------------------------------------------------
+#pragma region Updates
 
-/// @brief Updates velocity with the resulting forces of interactions between PhysicsObjects
+/// @brief Updates velocity with the gravitational forces between PhysicsObjects
 /// @param other The PhysicsObject being interacted with
 /// @param dt Deltatime
-void PhysObj::updateForces(PhysObj& other, double dt) {
+void PhysObj::updateGravity(PhysObj& other, double dt) {
     Vector2d gravityVector = getGravityVector(other)*dt;
     double surfaceDist = getSurfaceDistance(other);
+    velocity += gravityVector;
     //std::cout << "Body: " << std::to_string(id) << std::endl;
-    if (checkCollision(other, dt)) {
-        Vector2d collisionVector = getCollisionImpulse(other);
-        if (collisionVector.length() <= gravityVector.length()*mass) {
-            collisionVector = getCollisionImpulse(other, 0.0); // Nullify the collision
-        }
-        // Apply frictional dampening
-        //double res
-        Vector2d integratedForceVector = getIntegratedForces(other, dt, 1);
-
-        Vector2d totalVelocity = (velocity - other.velocity) + integratedForceVector;
-        Vector2d normal = (other.position-position).normalized();
-        Vector2d vNormal = normal * totalVelocity.dot(normal);
-        Vector2d vTangent = totalVelocity - vNormal;
-        vTangent *= 1.0 - other.frictionCoefficient; // Dampen the tangential velocity by the friction coefficient
-        Vector2d finalImpulse = (vNormal + vTangent ) - (velocity - other.velocity); // Velocity will be added from the buffer
-        applyImpulse(finalImpulse);
+    if (surfaceDist <= 2*GROUNDED_MARGIN) {
+        //std::cout << "Gravity" << std::endl;
         hasCollided = true;
-    } else if (surfaceDist > 0) {
-        velocityBuffer += gravityVector;
+        isGrounded = true;
+        if (other.mass >= mass) parentObject = &other;
     }
     
-    if (!parentObject) {
-        parentObject = &other;
-    } else if (parentObject != &other && gravityVector.lengthSquared() > (getGravityVector(*parentObject)*dt).lengthSquared()) {
-        parentObject = &other;
+    if (other.mass >= mass) {
+        if (!parentObject) {
+            parentObject = &other;
+        } else if (!isGrounded && parentObject != &other && getGravityVector(other, 3).lengthSquared() > (getGravityVector(*parentObject, 3)).lengthSquared()) {
+            parentObject = &other;
+        }
+    }
+}
+
+/// @brief Updates velocity with the kinetic forces between PhysicsObjects
+/// @param other The PhysicsObject being interacted with
+/// @param dt Deltatime
+void PhysObj::updateCollision(PhysObj& other, double dt) {
+    double resolution = 1.0;
+    
+    Vector2d relVelocity = (velocity - other.velocity);
+    if ((relVelocity*dt).lengthSquared() > pow(radius + other.radius, 2)) {
+        resolution = relVelocity.length()*dt/(radius + other.radius);
+    }
+    if (checkCollision(other, dt, resolution)) {
+        Vector2d normal = (other.position - position).normalized();
+        Vector2d collisionImpulse = getCollisionImpulse(other);        
+        double restThreshold = (0.1*getGravityVector(other)*mass).lengthSquared();
+        if (collisionImpulse.lengthSquared() <= restThreshold) {
+            //std::cout << std::to_string(id) << ": Damp" << std::endl;
+            collisionImpulse = getCollisionImpulse(other, 0.0); // Nullify the collision
+            // std::cout << std::to_string(id) << ": " << std::to_string(collisionImpulse.length() - (getGravityVector(other)*dt).length()) << std::endl;
+            double surfaceDistance = getSurfaceDistance(other);
+            if (surfaceDistance > 0) {
+                fixOverlap(other, true);
+            }
+            if (other.mass >= mass) parentObject = &other;
+                isGrounded = true;
+        }
+
+        double jNormal = collisionImpulse.dot(normal);
+        Vector2d normalImpulse = normal * jNormal;
+        double surfaceVelocity = other.rotationalVelocity.asRadians()*(other.radius + radius);
+        relVelocity -= normal.rotatedBy(sf::degrees(-90)) * surfaceVelocity;
+        Vector2d vTangentVel = relVelocity - normal * relVelocity.dot(normal);
+        double tangentSpeed = vTangentVel.length();
+
+        Vector2d frictionImpulse(0, 0);
+        if (tangentSpeed > 0) {
+            Vector2d tangentDir = vTangentVel.normalized();
+            double reducedMass = 1.0 / (1.0/mass + 1.0/other.mass);
+            double jTangentNeeded = tangentSpeed * reducedMass; // impulse to fully stop sliding
+            double avgFriction = sqrt(surfaceFriction*other.surfaceFriction);
+            double jTangentMax = avgFriction * std::abs(jNormal); // Coulomb's law
+            double jFriction = std::min(jTangentNeeded, jTangentMax);
+            frictionImpulse = -tangentDir * jFriction;
+        }
+
+        Vector2d totalImpulse = normalImpulse + frictionImpulse;
+        //std::cout << std::to_string(id) << ": Before Friction: " << std::to_string(relVelocity.length()) << std::endl;
+        applyImpulse(totalImpulse);
+        //std::cout << std::to_string(id) << ": After Friction: " << std::to_string((velocity + velocityBuffer).length()) << std::endl;
+        hasCollided = true;
     }
 }
 
 /// @brief Update the position of the object by its velocity
 /// @param dt Deltatime
 void PhysObj::updatePosition(double dt) {
-    //position += positionBuffer;
-    velocity += velocityBuffer;
+    rotation += rotationalVelocity*dt;
     position += (velocity*dt);
-    velocityBuffer = Vector2d(0, 0);
+}
+
+void PhysObj::updateVelocity() {
+    velocity += velocityBuffer;
+    velocityBuffer = Vector2d(0,0);
 }
 
 /// @brief Checks for and removes overlap between objects
@@ -81,18 +125,18 @@ void PhysObj::fixOverlap(PhysObj& other) {
 /// @param force Force reposition without checking distance
 void PhysObj::fixOverlap(PhysObj& other, bool force) {
     double surfaceDist = getSurfaceDistance(other);
-    if (surfaceDist < 0 || force) {
+    if (surfaceDist <= GROUNDED_MARGIN || force) {
+        //std::cout << "Overlap" << std::endl;
         Vector2d normal = (position - other.position).normalized();
-        Vector2d offset = normal * (surfaceDist + GROUNDED_MARGIN);
+        Vector2d offset = normal * (surfaceDist);
 
         if (mass == other.mass) {
             position -= offset/2.0;
             other.position += offset/2.0;
         } else if (mass < other.mass) {
             position -= offset;
-        } else {
-            other.position += offset;
         }
+        hasCollided = true;
     }
 }
 
@@ -102,76 +146,13 @@ void PhysObj::applyImpulse(Vector2d impulseVector) {
     velocityBuffer += impulseVector/mass;
 }
 
+#pragma endregion
 
 // Protected Methods -------------------------------------------------------------------------------
 
-void PhysObj::updateVirtualForces(PhysObj& other, double dt) {
-    Vector2d gravityVector = getGravityVector(other)*dt;
-    double surfaceDist = getSurfaceDistance(other);
-    //std::cout << "Body: " << std::to_string(id) << std::endl;
+// Physics -----------------------------------------------------------------------------------------
+#pragma region Physics
 
-    if (checkCollision(other, dt)) {
-        Vector2d collisionVector = getCollisionImpulse(other);
-        // if (collisionVector.length() <= gravityVector.length()*mass) {
-        //     collisionVector = getCollisionImpulse(other, 0.0); // Nullify the collision
-        // }
-        // Apply frictional dampening
-        // Vector2d totalVelocity = (velocity - other.velocity) + collisionVector;
-        // Vector2d normal = (other.position-position).normalized();
-        // Vector2d vNormal = normal * totalVelocity.dot(normal);
-        // Vector2d vTangent = totalVelocity - vNormal;
-        // vTangent *= (1.0 - other.frictionCoefficient); // Dampen the tangential velocity by the friction coefficient
-        // Vector2d finalImpulse = (vNormal + vTangent ) - (velocity - other.velocity); // Velocity will be added from the buffer
-        applyImpulse(collisionVector);
-        hasCollided = true;
-    } else if (surfaceDist > 0) {
-        velocityBuffer += gravityVector;
-    }
-    
-    if (!parentObject) {
-        parentObject = &other;
-    } else if (parentObject != &other && gravityVector.lengthSquared() > (getGravityVector(*parentObject)*dt).lengthSquared()) {
-        parentObject = &other;
-    }
-}
-
-
-Vector2d PhysObj::getIntegratedForces(PhysObj& other, double dt, double resolution) {
-    // Store current values
-
-    Vector2d sPosition = position;
-    Vector2d sVelocity = velocity;
-    Vector2d sVelocityBuffer = velocityBuffer;
-    Vector2d soPosition = other.position;
-    Vector2d soVelocity = other.velocity;
-    Vector2d soVelocityBuffer = other.velocityBuffer;
-
-    velocityBuffer = Vector2d(0,0);
-    other.velocityBuffer = Vector2d(0,0);
-
-    resolution = std::max(resolution, 1.0);
-    double delta =  dt/resolution;
-    for (int i=0; i < resolution; i++) {
-        updateVirtualForces(other, delta);
-        other.updateVirtualForces(*this, delta);
-        updatePosition(delta);
-        other.updatePosition(delta);
-        //fixOverlap(other);
-        //other.fixOverlap(*this);
-    }
-
-    Vector2d finalImpulse = velocity - sVelocity;
-
-    // Restore starting values
-    position = sPosition;
-    velocity = sVelocity;
-    velocityBuffer = sVelocityBuffer;
-    other.position = soPosition;
-    other.velocity = soVelocity;
-    other.velocityBuffer = soVelocityBuffer;
-    
-    return finalImpulse;
-}
 
 /// @brief Checks if this PhyicsObject will collide with other
 /// @param other The PhysicsObject to check with
@@ -188,10 +169,10 @@ bool PhysObj::checkCollision(PhysObj& other, double dt) {
 /// @return Whether a collision will occur
 bool PhysObj::checkCollision(PhysObj& other, double dt, double resolution) {
     if (resolution <= 0) {
-        throw std::invalid_argument("deltaScale must be greater than 0");
+        throw std::invalid_argument("resolution must be greater than 0");
     }
     double step = 0;
-    double sqrRadii = pow(radius + other.radius, 2);
+    double sqrRadii = pow(radius + other.radius + GROUNDED_MARGIN, 2);
     while (step < dt) {
         step += dt/resolution;
         Vector2d futurePos = position + (velocity * step);
@@ -207,7 +188,7 @@ bool PhysObj::checkCollision(PhysObj& other, double dt, double resolution) {
 /// @param other The colliding PhysicsObject
 /// @return The impulse vector
 Vector2d PhysObj::getCollisionImpulse(PhysObj& other) {
-    float avgElasticity = (elasticity + other.elasticity)/2;
+    float avgElasticity = sqrt(elasticity*other.elasticity);
     return getCollisionImpulse(other, avgElasticity);
 }
 
@@ -230,39 +211,121 @@ double PhysObj::getSurfaceDistance(PhysObj& other) {
     return (other.position - position).length() - (radius + other.radius);
 }
 
+
 /// @brief Get the acceleration vector of the gravitational force between two PhysicsObjects
 /// @param other The other PhysicsObject
 /// @return The acceleration vector of gravitational attraction
-Vector2d PhysObj::getGravityVector(PhysicsObject& other) {
+Vector2d PhysObj::getGravityVector(PhysObj& other) {
+    return getGravityVector(other, 2);
+}
+
+/// @brief Get the acceleration vector of the gravitational force between two PhysicsObjects
+/// @param other The other PhysicsObject
+/// @param distancePower Exponent for distance
+/// @return The acceleration vector of gravitational attraction
+Vector2d PhysObj::getGravityVector(PhysObj& other, int distancePower) {
     Vector2d normal = other.position - position;
-    double sqrDist = normal.lengthSquared();
+    double distanceFactor = normal.lengthSquared();
+    if (distancePower != 2) {
+        distanceFactor = pow(normal.length(), distancePower);
+    }
     //double sqrDist = pow(dist, 2);
-    if (sqrDist == 0) {
+    if (distanceFactor == 0) {
         return Vector2d(0, 0);
     }
-    Vector2d gravityVector = normal.normalized() * G*other.mass/sqrDist;
+    Vector2d gravityVector = normal.normalized() * G*other.mass/distanceFactor;
     return gravityVector;
 }
 
+#pragma endregion
 
+// Drawing -----------------------------------------------------------------------------------------
+
+// void PhysObj::drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale) {
+//     Vector2d relativeVelocity = velocity - referenceVelocity;
+//     Vector2d center = static_cast<Vector2d>(window.getSize())/2.0;
+
+//     sf::Color color(255,255,255);
+
+//     sf::VertexArray velocityLine(sf::PrimitiveType::Lines, 2); 
+//     velocityLine[0].position = static_cast<sf::Vector2f>(position + center);
+//     velocityLine[0].color = color;
+//     velocityLine[1].position = static_cast<sf::Vector2f>(position + center + relativeVelocity*scale);
+//     velocityLine[1].color = color;
+
+//     window.draw(velocityLine);
+// }
 
 //--------------------------------------------------------------------------------------------------
 // Body
 //--------------------------------------------------------------------------------------------------
 
+#pragma region Body Class
 
-Body::Body(Vector2d position, Vector2d velocity, double mass, double radius, float frictionCoefficient, sf::Color color) 
-    : PhysicsObject(position, velocity, mass, radius, frictionCoefficient), color(color)  {
-    shape.setFillColor(color);
+bool Body::textureLoaded = false;
+sf::Texture Body::texture;
+Body::Body(Vector2d position, Vector2d velocity,
+    double mass, double radius, sf::Angle rotationalVelocity, float surfaceFriction,
+    sf::Color color) 
+    : Body(position, velocity, mass, radius, rotationalVelocity, surfaceFriction, color, false) {
+}   
+
+Body::Body(Vector2d position, Vector2d velocity,
+    double mass, double radius, sf::Angle rotationalVelocity, float surfaceFriction,
+    sf::Color color, bool drawTexture) 
+    : PhysicsObject(position, velocity, mass, radius, rotationalVelocity, surfaceFriction), color(color)  {
     shape.setRadius(radius);
     shape.setOrigin(sf::Vector2f(radius, radius));
+    shape.setPointCount(30 + (int) (radius/5));
+    if (!Body::textureLoaded) {
+        sf::Image textureImage;
+        if (!textureImage.loadFromFile("assets/body_texture.png")) {
+            throw std::invalid_argument("Bad body texture");
+        }
+        sf::Image tileTextureImage(sf::Vector2u(32, 32));
+        if (!tileTextureImage.copy(textureImage, {0, 0}, sf::IntRect({0, 0}, {32,32}))) {
+            throw std::invalid_argument("Failed to build tile texture");
+        }
+
+        if (!Body::texture.loadFromImage(tileTextureImage)) {
+            throw std::invalid_argument("Failed to build tile texture");
+        }
+        Body::texture.setRepeated(true);
+        Body::textureLoaded = true;
+    }
+    int textureWidth = static_cast<int>(radius);
+    if (drawTexture) {
+        shape.setTexture(&Body::texture);
+        shape.setTextureRect(sf::IntRect({0,0}, {textureWidth, textureWidth}));
+    }
+    shape.setFillColor(color);
 }
 
-void Body::draw(sf::RenderWindow& window, float distanceScale) {
-    sf::Vector2f scaledPosition = static_cast<sf::Vector2f>(position)/distanceScale;
+void Body::draw(sf::RenderWindow& window) {
     sf::Vector2f center = static_cast<sf::Vector2f>(window.getSize())/2.f;
-    shape.setPosition(scaledPosition + center);
-    shape.setRadius(radius / distanceScale);
-    shape.setOrigin(sf::Vector2f(radius/distanceScale, radius/distanceScale));
+    shape.setPosition(static_cast<sf::Vector2f>(position) + center);
+    shape.setRotation(rotation);
     window.draw(shape);
 }
+
+void Body::drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale) {
+    Vector2d relativeVelocity = velocity - referenceVelocity;
+    Vector2d center = static_cast<Vector2d>(window.getSize())/2.0;
+
+    sf::Color lineColor = sf::Color(255,0,0);
+    // float brightness = (color.r + color.g + color.b) / 3.f;
+    // if (brightness > 255/2) {
+    //     lineColor = sf::Color(0,0,0);
+    // }
+    // lineColor.a = 255;
+
+    sf::VertexArray velocityLine(sf::PrimitiveType::Lines, 2); 
+    velocityLine[0].position = static_cast<sf::Vector2f>(position + center);
+    velocityLine[0].color = lineColor;
+    velocityLine[1].position = static_cast<sf::Vector2f>(position + center + relativeVelocity*scale);
+    velocityLine[1].color = lineColor;
+
+    window.draw(velocityLine);
+}
+
+#pragma endregion
