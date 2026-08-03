@@ -15,6 +15,8 @@ const float MIN_ZOOM_SCALE = 0.125;
 const double BACKGROUND_SCROLL_SPEED = 0.01;
 
 const bool DEBUG_VELOCITY_SCALE = 1.0;
+const double VISUAL_ORBIT_DURATION = 10;
+const int VISUAL_ORBIT_RESOLUTION_SCALE = 30; 
 
 
 class Game {
@@ -25,40 +27,7 @@ class Game {
         // Methods
         Game(unsigned int window_w, unsigned int window_h);
         void run();
-        
-    private:
-        // Members
-        std::vector<std::unique_ptr<PhysicsObject>> objects;
-        Vector2d globalOrigin = Vector2d(0, 0);
-        Vector2d globalVelocity = Vector2d(0, 0);
-        sf::Angle globalRotation = sf::Angle::Zero;
-        sf::Vector2f bgOffset = sf::Vector2f(0,0);
-        float distanceScale = 1.0;
-        float zoomScale = 1.0;
-        float timeScale = 1.0;
-        Player player;
-        float dt;
 
-        bool copyRotation = true;
-
-        sf::Vector2f bgSize;
-        sf::Texture bgTexture;
-        sf::Sprite bgSprite;
-
-        InputManager inputManager;
-
-        // Debug flags
-        bool drawVelocities = true;
-        bool useParentAsReference = true;
-
-        // Methods
-        void updateInputStates();
-        void handleInput(double dt);
-        void update(double dt);
-        void draw(sf::RenderWindow& window);
-        void drawBackground(sf::RenderWindow& window, double dt);
-
-        // Initialization
         Body* addBody(
             Vector2d position,
             Vector2d velocity,
@@ -82,12 +51,50 @@ class Game {
             double frictionCoefficient,
             sf::Color color
         );
+        
+    private:
+        // Members
+        InputManager inputManager;
+        std::vector<std::unique_ptr<PhysicsObject>> objects;
+        Vector2d globalOrigin = Vector2d(0, 0);
+        Vector2d globalVelocity = Vector2d(0, 0);
+        sf::Angle globalRotation = sf::Angle::Zero;
+        sf::Vector2f bgOffset = sf::Vector2f(0,0);
+        float zoomScale = 1.0;
+        float timeScale = 1.0;
+        Player player;
+        float dt;
+
+        bool freecamEnabled = false;
+        bool copyRotation = true;
+
+        sf::Vector2f bgSize;
+        sf::Texture bgTexture;
+        sf::Sprite bgSprite;
+
+        
+
+        // Debug flags
+        bool drawVelocities = false;
+        bool useParentAsReference = true;
+
+        // Methods
+        void updateInputStates();
+        void handleInput(double dt);
+        void update(double dt);
+        void draw(sf::RenderWindow& window);
+        void drawBackground(sf::RenderWindow& window, double dt);
 
         // Updates
-        void updateRelativeVelocities(PhysicsObject& referenceObject);
-        void updateRelativePositions(float lerpScale, PhysicsObject& target, bool copyRotation);
+        void updateRelativeVelocities(Vector2d newCenterVelocity);
+        void updateRelativePositions(float lerpScale, Vector2d newCenter);
+        void updateRelativeRotations(float lerpScale, sf::Angle newRotation);
+
         void moveGlobalPositions(Vector2d offset);
+        void drawVisualeOrbits(double duration, int resolution);
+
         // Camera
+        void moveCamera(sf::Vector2f offset);
         void zoomCamera(float zoomValue);
         void rotateCamera(sf::Angle targetAngle);
 };

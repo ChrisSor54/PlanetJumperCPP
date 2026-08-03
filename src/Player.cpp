@@ -6,7 +6,7 @@ using pl = Player;
 
 
 pl::Player() 
-    : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, sf::degrees(0), 1.0), sprite(sf::Sprite(spriteTexture.getTexture())) {
+    : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, sf::degrees(0), PLAYER_FRICTION), sprite(sf::Sprite(spriteTexture.getTexture())) {
     elasticity = PLAYER_ELASTICITY;
 
     sf::Color playerColor(250, 250, 250);

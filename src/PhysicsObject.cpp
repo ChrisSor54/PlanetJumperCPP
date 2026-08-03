@@ -34,11 +34,13 @@ void PhysObj::updateGravity(PhysObj& other, double dt) {
     double surfaceDist = getSurfaceDistance(other);
     velocity += gravityVector;
     //std::cout << "Body: " << std::to_string(id) << std::endl;
-    if (surfaceDist <= 2*GROUNDED_MARGIN) {
+    if (surfaceDist <= 2.0*GROUNDED_MARGIN) {
         //std::cout << "Gravity" << std::endl;
         hasCollided = true;
-        isGrounded = true;
-        if (other.mass >= mass) parentObject = &other;
+        if (other.mass >= mass) {
+            parentObject = &other;
+            isGrounded = true;
+        }
     }
     
     if (other.mass >= mass) {
@@ -54,50 +56,22 @@ void PhysObj::updateGravity(PhysObj& other, double dt) {
 /// @param other The PhysicsObject being interacted with
 /// @param dt Deltatime
 void PhysObj::updateCollision(PhysObj& other, double dt) {
-    double resolution = 1.0;
-    
-    Vector2d relVelocity = (velocity - other.velocity);
-    if ((relVelocity*dt).lengthSquared() > pow(radius + other.radius, 2)) {
-        resolution = relVelocity.length()*dt/(radius + other.radius);
-    }
-    if (checkCollision(other, dt, resolution)) {
+    if (checkCollision(other, dt)) {
         Vector2d normal = (other.position - position).normalized();
-        Vector2d collisionImpulse = getCollisionImpulse(other);        
-        double restThreshold = (0.1*getGravityVector(other)*mass).lengthSquared();
-        if (collisionImpulse.lengthSquared() <= restThreshold) {
-            //std::cout << std::to_string(id) << ": Damp" << std::endl;
-            collisionImpulse = getCollisionImpulse(other, 0.0); // Nullify the collision
-            // std::cout << std::to_string(id) << ": " << std::to_string(collisionImpulse.length() - (getGravityVector(other)*dt).length()) << std::endl;
+        double restThreshold = (COLLISION_REST_COEFFICIENT*getGravityVector(other)*mass).lengthSquared();
+        Vector2d collisionImpulse = getCollisionImpulse(other, restThreshold);        
+        Vector2d collisionNormal = normal * collisionImpulse.dot(normal);
+        if (collisionNormal.lengthSquared() <= restThreshold) {
             double surfaceDistance = getSurfaceDistance(other);
-            if (surfaceDistance > 0) {
-                fixOverlap(other, true);
-            }
-            if (other.mass >= mass) parentObject = &other;
+            // if (surfaceDistance > 0) {
+            //     fixOverlap(other, true);
+            // }
+            if (other.mass >= mass) {
+                parentObject = &other;
                 isGrounded = true;
+            }
         }
-
-        double jNormal = collisionImpulse.dot(normal);
-        Vector2d normalImpulse = normal * jNormal;
-        double surfaceVelocity = other.rotationalVelocity.asRadians()*(other.radius + radius);
-        relVelocity -= normal.rotatedBy(sf::degrees(-90)) * surfaceVelocity;
-        Vector2d vTangentVel = relVelocity - normal * relVelocity.dot(normal);
-        double tangentSpeed = vTangentVel.length();
-
-        Vector2d frictionImpulse(0, 0);
-        if (tangentSpeed > 0) {
-            Vector2d tangentDir = vTangentVel.normalized();
-            double reducedMass = 1.0 / (1.0/mass + 1.0/other.mass);
-            double jTangentNeeded = tangentSpeed * reducedMass; // impulse to fully stop sliding
-            double avgFriction = sqrt(surfaceFriction*other.surfaceFriction);
-            double jTangentMax = avgFriction * std::abs(jNormal); // Coulomb's law
-            double jFriction = std::min(jTangentNeeded, jTangentMax);
-            frictionImpulse = -tangentDir * jFriction;
-        }
-
-        Vector2d totalImpulse = normalImpulse + frictionImpulse;
-        //std::cout << std::to_string(id) << ": Before Friction: " << std::to_string(relVelocity.length()) << std::endl;
-        applyImpulse(totalImpulse);
-        //std::cout << std::to_string(id) << ": After Friction: " << std::to_string((velocity + velocityBuffer).length()) << std::endl;
+        applyImpulse(collisionImpulse);
         hasCollided = true;
     }
 }
@@ -159,7 +133,12 @@ void PhysObj::applyImpulse(Vector2d impulseVector) {
 /// @param dt Deltatime
 /// @return Whether a collision will occur
 bool PhysObj::checkCollision(PhysObj& other, double dt) {
-    return checkCollision(other, dt, 1);
+    Vector2d relVelocity = (velocity - other.velocity);
+    double resolution = 1.0;
+    if ((relVelocity*dt).lengthSquared() > pow(radius + other.radius, 2)) {
+        resolution = relVelocity.length()*dt/(radius + other.radius);
+    }
+    return checkCollision(other, dt, resolution);
 }
 
 /// @brief Checks if this PhyicsObject will collide with other
@@ -184,24 +163,43 @@ bool PhysObj::checkCollision(PhysObj& other, double dt, double resolution) {
     return false;
 }
 
-/// @brief Get the collision impulse vector
-/// @param other The colliding PhysicsObject
-/// @return The impulse vector
 Vector2d PhysObj::getCollisionImpulse(PhysObj& other) {
-    float avgElasticity = sqrt(elasticity*other.elasticity);
-    return getCollisionImpulse(other, avgElasticity);
+    double sqrRestThreshold = (COLLISION_REST_COEFFICIENT*getGravityVector(other)*mass).lengthSquared();
+    return getCollisionImpulse(other, sqrRestThreshold);
 }
 
 /// @brief Get the collision impulse vector
 /// @param other The colliding PhysicsObject
 /// @param elasticity The elasticity of the collision
 /// @return The impulse vector
-Vector2d PhysObj::getCollisionImpulse(PhysObj& other, double elasticity) {
+Vector2d PhysObj::getCollisionImpulse(PhysObj& other, double sqrRestThreshold) {
     Vector2d relativeVelocity = velocity - other.velocity;
-    Vector2d collisionNormal = (position - other.position).normalized();
-    double vNormal = relativeVelocity.dot(collisionNormal);
-    Vector2d collisionImpulse = -(vNormal*(1 + elasticity)/(1/mass + 1/other.mass)) * collisionNormal;
-    return collisionImpulse;
+    Vector2d normal = (other.position - position).normalized();
+    double vNormal = relativeVelocity.dot(normal);
+    double avgElasticity = sqrt(elasticity*other.elasticity);
+    Vector2d collisionImpulse = -(vNormal*(1 + avgElasticity)/(1/mass + 1/other.mass)) * normal;
+    if (collisionImpulse.lengthSquared() <= sqrRestThreshold) {
+        collisionImpulse = -(vNormal)/(1/mass + 1/other.mass) * normal; // Nullify soft collisions
+    }
+    double jNormal = collisionImpulse.dot(normal);
+    double totalSurfaceVelocity = (rotationalVelocity + other.rotationalVelocity).asRadians()*(other.radius + radius);
+    relativeVelocity -= normal.rotatedBy(sf::degrees(-90)) * totalSurfaceVelocity;
+    Vector2d vTangentVel = relativeVelocity - normal * relativeVelocity.dot(normal);
+    double tangentSpeed = vTangentVel.length();
+
+    Vector2d frictionImpulse(0, 0);
+    if (tangentSpeed > 0) {
+        Vector2d tangentDir = vTangentVel.normalized();
+        double reducedMass = 1.0 / (1.0/mass + 1.0/other.mass);
+        double jTangentNeeded = tangentSpeed * reducedMass; // impulse to fully stop sliding
+        double avgFriction = sqrt(surfaceFriction*other.surfaceFriction);
+        double jTangentMax = avgFriction * std::abs(jNormal); // Coulomb's law
+        double jFriction = std::min(jTangentNeeded, jTangentMax);
+        frictionImpulse = -tangentDir * jFriction;
+    }
+
+    Vector2d totalImpulse = collisionImpulse + frictionImpulse;
+    return totalImpulse;
 }
 
 /// @brief Get the distance between object surfaces
@@ -237,24 +235,138 @@ Vector2d PhysObj::getGravityVector(PhysObj& other, int distancePower) {
     return gravityVector;
 }
 
+Vector2d PhysObj::getGravityVector(Vector2d position1, double mass1, Vector2d position2, double mass2) {
+    Vector2d normal = (position2 - position1).normalized();
+    double distanceFactor = normal.lengthSquared();
+    return normal.normalized() * G*mass1*mass2/distanceFactor;
+}
+
+double PhysObj::getSurfaceVelocity() {
+    return radius * rotationalVelocity.asRadians();
+}
+
+double PhysObj::getOrbitalPeriod(PhysObj& referenceObject) {
+    double a = getSemiMajorAxis(referenceObject);
+    if (a < 0) return 0.0;
+    double M = referenceObject.mass;
+    return 2.0*PI*sqrt(pow(a, 3.0)/(G*M));
+}
+
+double PhysObj::getSemiMajorAxis(PhysObj& referenceObject) {
+    // v^2 = GM(2/r - 1/a)
+    // v^2 = 2GM/r - GM/a
+    // GM/a = 2GM/r - v^2
+    // 1/a = 2/r - v^2/GM
+    // a = 1/(2/r - v^2/GM)
+    // a = r/2 - GM/v^2
+
+    double v2 = (velocity - referenceObject.velocity).lengthSquared();
+    double r = (position - referenceObject.position).length();
+    double M = referenceObject.mass;
+    double semiMajorAxis = 1.0/(2.0/r - v2/(G*M));
+    return semiMajorAxis;
+}
+
 #pragma endregion
 
 // Drawing -----------------------------------------------------------------------------------------
+#pragma region Visualization
 
-// void PhysObj::drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale) {
-//     Vector2d relativeVelocity = velocity - referenceVelocity;
-//     Vector2d center = static_cast<Vector2d>(window.getSize())/2.0;
+std::vector<Vector2d> PhysicsObject::getOrbitalPath(double duration, int resolutionScale) {
+    int resolution = duration*resolutionScale;
+    double timeDelta = 1.0/resolutionScale;
+    Vector2d initialPosition = position;
+    Vector2d initialVelocity = velocity;
+    std::vector<Vector2d> orbitalPath;
+    if (parentObject) {
+        velocity -= parentObject->velocity;
+    }
+    
+    for (int i=0; i<resolution; i++) {  
+        if (parentObject) {
+            Vector2d gravityVector = getGravityVector(*parentObject)*timeDelta;
+            velocity += gravityVector;
+            if (checkCollision(*parentObject, timeDelta)) {
+                velocity += parentObject->velocity;
+                velocity += getCollisionImpulse(*parentObject)/mass - gravityVector;
+                velocity -= parentObject->velocity;
+            }
+        }      
 
-//     sf::Color color(255,255,255);
+        position += velocity*timeDelta;
+        orbitalPath.push_back(position - initialPosition);
+    }
+    position = initialPosition;
+    velocity = initialVelocity;
+    return orbitalPath;
+}
 
-//     sf::VertexArray velocityLine(sf::PrimitiveType::Lines, 2); 
-//     velocityLine[0].position = static_cast<sf::Vector2f>(position + center);
-//     velocityLine[0].color = color;
-//     velocityLine[1].position = static_cast<sf::Vector2f>(position + center + relativeVelocity*scale);
-//     velocityLine[1].color = color;
+void PhysObj::drawOrbitalPath(sf::RenderWindow& window, int resolutionScale) {
+    if (!parentObject) return;
+    double period = getOrbitalPeriod(*parentObject);
+    if (period <= 0.0) {
+        period = 5.0; // Arbitrary path length for objects not in orbit
+    }
+    period = std::min(period, 360.0);
+    resolutionScale /= (sqrt(period)/2.0);
+    drawOrbitalPath(window, period, resolutionScale);
+}
 
-//     window.draw(velocityLine);
-// }
+void PhysObj::drawOrbitalPath(sf::RenderWindow& window, double duration, int resolutionScale) {
+    std::vector<Vector2d> orbitalPath = getOrbitalPath(duration, resolutionScale);
+    int pathStart = 0;
+    int pathEnd = orbitalPath.size();
+    // if (!isGrounded) {
+    //     for (auto& point : orbitalPath) {
+    //         if (point.length() < radius) {
+    //             pathStart += 1;
+    //         } else break;
+    //     }
+    //     for (int i=pathEnd; i>pathStart;i--) {
+    //         if (orbitalPath[i].length() >= radius) {
+    //             pathEnd = i;
+    //             break;
+    //         }
+    //     }
+    // }
+    int vertexCount = pathEnd - pathStart;
+    bool isFullOrbit = false;
+    if (orbitalPath[pathEnd-1].length() < radius) {
+        vertexCount += 1;
+        isFullOrbit = true;
+    }
+    if (vertexCount < 2) return;
+    sf::VertexArray pathLine = sf::VertexArray(sf::PrimitiveType::LineStrip, vertexCount);
+    Vector2d center = static_cast<Vector2d>(window.getSize())/2.0;
+
+    sf::Color lineColor = sf::Color(150,150,255);
+
+    for (int i=pathStart; i<pathEnd; i++) {
+        pathLine[i - pathStart].position = static_cast<sf::Vector2f>(position + orbitalPath[i] + center);
+        pathLine[i - pathStart].color = lineColor;
+    }
+    if (isFullOrbit) {
+        pathLine[vertexCount-1].position = static_cast<sf::Vector2f>(position + orbitalPath[pathStart] + center);
+        pathLine[vertexCount-1].color = lineColor;
+    }
+
+
+    // if (!isGrounded) {
+    //     pathLine[0].position = static_cast<sf::Vector2f>(position + (orbitalPath[0].normalized()*radius) + center);
+    //     pathLine[0].color = lineColor;
+    //     if (pathEnd == orbitalPath.size()-1) {
+    //         pathLine[vertexCount-1].position = static_cast<sf::Vector2f>(position + orbitalPath[pathEnd-1] + center);            
+    //     } else {
+    //         pathLine[vertexCount-1].position = static_cast<sf::Vector2f>(position + (orbitalPath[pathEnd-1].normalized()*radius) + center);
+    //     }
+    //     pathLine[vertexCount-1].color = lineColor;
+        
+    // }
+
+    window.draw(pathLine);
+}
+
+#pragma endregion
 
 //--------------------------------------------------------------------------------------------------
 // Body

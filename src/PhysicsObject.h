@@ -3,6 +3,7 @@
 
 const float DEFAULT_FRICTION_COEFFICIENT = 0.6;
 const float GROUNDED_MARGIN = 0.1;
+const double COLLISION_REST_COEFFICIENT = 0.16;
 
 
 
@@ -40,6 +41,8 @@ class PhysicsObject {
 
         virtual void draw(sf::RenderWindow& window) = 0;
         virtual void drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale) = 0;
+        void drawOrbitalPath(sf::RenderWindow& window, int resolutionScale);
+        void drawOrbitalPath(sf::RenderWindow& window, double duration, int resolutionScale);
         virtual ~PhysicsObject() {};
 
     protected:
@@ -51,9 +54,14 @@ class PhysicsObject {
         bool checkCollision(PhysicsObject& other, double dt);
         bool checkCollision(PhysicsObject& other, double dt, double resolution);
         Vector2d getCollisionImpulse(PhysicsObject& other);
-        Vector2d getCollisionImpulse(PhysicsObject& other, double elasticity);
+        Vector2d getCollisionImpulse(PhysicsObject& other, double sqrRestThreshold);
         Vector2d getGravityVector(PhysicsObject& other);
         Vector2d getGravityVector(PhysicsObject& other, int distancePower);
+        Vector2d getGravityVector(Vector2d position1, double mass1, Vector2d position2, double mass2);
+        double getSurfaceVelocity();
+        double getOrbitalPeriod(PhysicsObject& referenceObject);
+        double getSemiMajorAxis(PhysicsObject& referenceObject); 
+        std::vector<Vector2d> getOrbitalPath(double duration, int resolutionScale);
 };
 
 class Body : public PhysicsObject {

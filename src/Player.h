@@ -35,6 +35,7 @@ const double THRUSTER_STRENGTH = 100.0;
 const double PLAYER_MASS = 5.0;
 const double COLLISION_RADIUS = 12.0;
 const double PLAYER_ELASTICITY = 0.0;
+const double PLAYER_FRICTION = 1.0;
 
 const double MIN_JUMP_CHARGE = 100.0;
 const double MAX_JUMP_CHARGE = 2000.0;

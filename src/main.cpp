@@ -33,86 +33,6 @@ void Game::run() {
     //addBody(Vector2d(100.f, 0.f), Vector2d(0, 0),   14000000.0, 100.0, sf::Color(255, 255, 255));  
     //addBody(Vector2d(-500.f, 0.f), Vector2d(0, 120), 1000000.0, 20.0, sf::Color(255, 255, 255));
 
-    // Star A
-    Body* starA = addBody(
-        Vector2d(-50000.f, 0.f), // Position
-        Vector2d(0, 0), // Velocity
-        5*pow(10, 11), // Mass
-        20000.0, // Radius
-        sf::degrees(0), // Rotational Velocity
-        0.1, // Surface Friction
-        sf::Color(251, 255, 148), // Color
-        false // Draw body texture
-    ); 
-
-    // Planet A
-    Body* planetA = addSatellite(
-        starA, // Parent Body
-        sf::degrees(0), // Angle
-        50000, // SemiMajorAxis
-        0.0, // Eccentricity
-        false, // CounterClockwise orbit
-        8*pow(10, 7), // Mass
-        450, // Radius
-        sf::degrees(2),
-        0.8, // Surface Friction
-        sf::Color(168, 168, 162) // Color
-    ); 
-
-    // Moon A1
-    Body* moonA1 = addSatellite(
-        planetA,
-        sf::degrees(180),
-        700,
-        0.0,
-        false,
-        5*pow(10, 5),
-        40.0,
-        sf::degrees(10),
-        0.2,
-        sf::Color(100, 130, 88)
-    );
-
-    // Body* asteroid = addSatellite(
-    //     planetA,
-    //     sf::degrees(0),
-    //     700,
-    //     0.9,
-    //     false,
-    //     5000,
-    //     100.0,
-    //     sf::degrees(45),
-    //     0.2,
-    //     sf::Color(100, 50, 50)
-    // );
-
-    // Planet B
-    Body* planetB = addSatellite(
-        starA,
-        sf::degrees(0),
-        35000,
-        0,
-        false,
-        65*pow(10, 5),
-        100.0,
-        sf::radians(0.108),
-        0.8,
-        sf::Color(21, 24, 79)
-    );
-
-    // Planet C
-    Body* planetC = addSatellite(
-        starA,
-        sf::degrees(-90),
-        84000,
-        0,
-        false,
-        18*pow(10, 7),
-        1000.0,
-        sf::degrees(0),
-        0.1,
-        sf::Color(150, 140, 126)
-    );
 
     // Moon C1
     // Body* moonC1 = addBody(
@@ -221,6 +141,8 @@ void Game::updateInputStates() {
     }
     inputManager.directionalInput = sf::Vector2f(0,0);
 
+    if (!window.hasFocus()) return;
+
     while (const std::optional event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>())
             window.close();
@@ -262,21 +184,31 @@ void Game::updateInputStates() {
 }
 
 void Game::handleInput(double dt) {
-    
-    if (inputManager.inputStates[InputAction::ZoomIn].released) {
-        zoomCamera(2.0);
-    } else if (inputManager.inputStates[InputAction::ZoomOut].released) {
-        zoomCamera(0.5);
-    }
-
-    if (player.getState() == State::DEAD) {
-        if (inputManager.directionalInput.lengthSquared() != 0) {
-            moveGlobalPositions(static_cast<Vector2d>(inputManager.directionalInput) * (double)(CAMERA_SPEED*dt*distanceScale));
-        }
-
-    }
-
     if (!inputManager.inputStates[InputAction::DEBUG].pressed) {
+        if (inputManager.inputStates[InputAction::ZoomIn].released) {
+            zoomCamera(2.0);
+        } else if (inputManager.inputStates[InputAction::ZoomOut].released) {
+            zoomCamera(0.5);
+        }
+    
+        if (inputManager.inputStates[InputAction::ToggleFreecam].released) {
+            freecamEnabled = !freecamEnabled;
+            sf::View view = window.getView();
+            float windowWidth = window.getSize().x;
+            float windowHeight = window.getSize().y;
+            view.setCenter({windowWidth/2.f, windowHeight/2.f});
+            window.setView(view);
+        }
+        if (player.getState() == State::DEAD) {
+            if (inputManager.directionalInput.lengthSquared() != 0) {
+                moveGlobalPositions(static_cast<Vector2d>(inputManager.directionalInput) * (double)(CAMERA_SPEED*dt*zoomScale));
+            }
+        } else if (freecamEnabled) {
+            if (inputManager.directionalInput.lengthSquared() != 0) {
+                moveCamera(inputManager.directionalInput.rotatedBy(globalRotation) * (float)(CAMERA_SPEED*dt*zoomScale));
+                inputManager.directionalInput = sf::Vector2f(0,0);
+            }
+        }
         if (inputManager.inputStates[InputAction::SpeedUp].released) {
             timeScale *= 2.0;
         } else if (inputManager.inputStates[InputAction::SpeedDown].released) {
@@ -289,6 +221,7 @@ void Game::handleInput(double dt) {
         if (inputManager.inputStates[InputAction::ToggleRotation].released) {
             copyRotation = !copyRotation;
         }
+        
     } else { // Debug
         if (inputManager.inputStates[InputAction::DEBUG_ShowVelocities].released) {
             drawVelocities = !drawVelocities;
@@ -364,6 +297,8 @@ void Game::update(double dt) {
             player.updateVelocity();
         }
 
+        globalOrigin += globalVelocity*dt;
+
         if (playerActive) {
             player.update(delta);
             player.handleInput(inputManager, window, dt);
@@ -394,32 +329,39 @@ void Game::update(double dt) {
         player.updateSmoke(dt);
         //std::cout << std::to_string((player.velocity - player.parentObject->velocity).length()) << std::endl;
         if (playerActive) {
-            updateRelativeVelocities(player);
-            bool rotateCamera = (player.getState() == State::GROUNDED && copyRotation);
-            updateRelativePositions(CAMERA_LERP_SPEED, player, rotateCamera);
+            updateRelativeVelocities(player.velocity);
+            updateRelativePositions(CAMERA_LERP_SPEED, player.position);
+            if (player.getState() == State::GROUNDED && copyRotation && !freecamEnabled) {
+                updateRelativeRotations(CAMERA_LERP_SPEED, player.rotation);
+            }
             //centerCamera(CAMERA_LERP_SPEED, player, false);
+            if (freecamEnabled) {
+                moveCamera(static_cast<sf::Vector2f>(globalVelocity*dt));
+            }
         }
     }
 }
 
-void Game::updateRelativePositions(float lerpScale, PhysicsObject& target, bool copyRotation) {
-    Vector2d targetPos = target.position;
+void Game::updateRelativePositions(float lerpScale, Vector2d newCenter) {
     float t = lerpScale*dt*zoomScale;
     t = std::clamp(t, 0.f, 1.f);
-    float lerpX = std::lerp(0.f, targetPos.x, t);
-    float lerpY = std::lerp(0.f, targetPos.y, t);
+    float lerpX = std::lerp(0.f, newCenter.x, t);
+    float lerpY = std::lerp(0.f, newCenter.y, t);
     Vector2d lerpOffset(lerpX, lerpY);
     moveGlobalPositions(lerpOffset);
-    if (copyRotation) {
-        sf::View view = window.getView();
-        float targetAngle = target.rotation.asDegrees();
-        float currentAngle = view.getRotation().asDegrees();
-        float diff = std::fmod(targetAngle - currentAngle + 180.f, 360.f);
-        if (diff < 0) diff += 360.f;
-            diff -= 180.f;
-        float lerpA = currentAngle + (diff+90) * t;
-        rotateCamera(sf::degrees(lerpA));
-    }
+}
+
+void Game::updateRelativeRotations(float lerpScale, sf::Angle newRotation) {
+    float t = lerpScale*dt*zoomScale;
+    t = std::clamp(t, 0.f, 1.f);
+    sf::View view = window.getView();
+    float targetAngle = newRotation.asDegrees();
+    float currentAngle = view.getRotation().asDegrees();
+    float diff = std::fmod(targetAngle - currentAngle + 180.f, 360.f);
+    if (diff < 0) diff += 360.f;
+        diff -= 180.f;
+    float lerpA = currentAngle + (diff+90) * t;
+    rotateCamera(sf::degrees(lerpA));
 }
 
 void Game::moveGlobalPositions(Vector2d offset) {
@@ -431,20 +373,19 @@ void Game::moveGlobalPositions(Vector2d offset) {
         if (particle.lifespan <= 0) continue;
         particle.pos -= (sf::Vector2f) offset;
     }
-    globalOrigin += offset;
+    globalOrigin -= offset;
 }
 
-void Game::updateRelativeVelocities(PhysObj& referenceObject) {
-    Vector2d refVelocity = referenceObject.velocity;
+void Game::updateRelativeVelocities(Vector2d newCenterVelocity) {
     for (auto& obj : objects) {
-        obj->velocity -= refVelocity;
+        obj->velocity -= newCenterVelocity;
     }
-    player.velocity -= refVelocity;
-    globalVelocity -= refVelocity;
+    player.velocity -= newCenterVelocity;
     for (auto& particle : player.smokeArray) {
         if (particle.lifespan <= 0) continue;
-        particle.vel -= (sf::Vector2f) refVelocity;
+        particle.vel -= (sf::Vector2f) newCenterVelocity;
     }
+    globalVelocity -= newCenterVelocity;
 }
 
 
@@ -458,9 +399,11 @@ void Game::draw(sf::RenderWindow& window) {
     drawBackground(window, dt);
     player.drawSmoke(window);
     for (auto& obj : objects) {
+        if (drawVelocities && obj->parentObject) obj->drawOrbitalPath(window, VISUAL_ORBIT_RESOLUTION_SCALE);
         obj->draw(window);
     }
     if (player.getState() != State::DEAD) {
+        if (drawVelocities && player.parentObject) player.drawOrbitalPath(window, VISUAL_ORBIT_RESOLUTION_SCALE);
         player.draw(window);
     }
     if (drawVelocities) {
@@ -469,12 +412,13 @@ void Game::draw(sf::RenderWindow& window) {
         for (auto& obj : objects) {
             Vector2d thisReferenceVelocity = referenceVelocity;
             if (useParentAsReference && obj->parentObject) thisReferenceVelocity = obj->parentObject->velocity;
-            obj->drawVelocity(window, thisReferenceVelocity, DEBUG_VELOCITY_SCALE);
+            // obj->drawVelocity(window, thisReferenceVelocity, DEBUG_VELOCITY_SCALE);
         }
         if (player.getState() != State::DEAD) {
             Vector2d thisReferenceVelocity = referenceVelocity;
             if (useParentAsReference && player.parentObject) thisReferenceVelocity = player.parentObject->velocity;
             player.drawVelocity(window, thisReferenceVelocity, DEBUG_VELOCITY_SCALE);
+            
         }
     }
 
@@ -482,15 +426,19 @@ void Game::draw(sf::RenderWindow& window) {
 }
 
 void Game::drawBackground(sf::RenderWindow& window, double dt) {
-    bgOffset += static_cast<sf::Vector2f>(globalVelocity*BACKGROUND_SCROLL_SPEED*dt)/zoomScale;
+    sf::View view = window.getView();
+    if (!freecamEnabled) {
+        bgOffset += static_cast<sf::Vector2f>(globalVelocity*BACKGROUND_SCROLL_SPEED*dt)/zoomScale;
+    }
     int windowX = static_cast<int>(window.getSize().x);
     int windowY = static_cast<int>(window.getSize().y);
     int windowM = std::max(windowX, windowY);
     int offsetX = -bgOffset.x;
     int offsetY = -bgOffset.y;
     bgSprite.setTextureRect(sf::IntRect({offsetX, offsetY}, {2*windowX, 2*windowY}));
+    
     bgSprite.setOrigin(sf::Vector2f(windowX, windowY));
-    bgSprite.setPosition(sf::Vector2f(windowX/2, windowY/2));
+    bgSprite.setPosition(view.getCenter());
     bgSprite.setScale(sf::Vector2f(1.0, 1.0) * zoomScale);
     window.draw(bgSprite);
 }
@@ -499,6 +447,12 @@ void Game::drawBackground(sf::RenderWindow& window, double dt) {
 
 // Camera ------------------------------------------------------------------------------------------
 #pragma region Camera
+
+void Game::moveCamera(sf::Vector2f offset) {
+    sf::View view = window.getView();
+    view.move(offset);
+    window.setView(view);
+}
 
 void Game::rotateCamera(sf::Angle targetAngle) {
     sf::View view = window.getView();
@@ -525,6 +479,76 @@ void Game::zoomCamera(float zoomValue) {
 
 int main() {
     Game game(800, 600);
+
+    // Star A
+    Body* starA = game.addBody(
+        Vector2d(-50000.f, 0.f), // Position
+        Vector2d(0, 0), // Velocity
+        5*pow(10, 11), // Mass
+        20000.0, // Radius
+        sf::degrees(0), // Rotational Velocity
+        0.1, // Surface Friction
+        sf::Color(251, 255, 148), // Color
+        false // Draw body texture
+    ); 
+
+    // Planet A
+    Body* planetA = game.addSatellite(
+        starA, // Parent Body
+        sf::degrees(0), // Angle
+        50000, // SemiMajorAxis
+        0.0, // Eccentricity
+        false, // CounterClockwise orbit
+        8*pow(10, 7), // Mass
+        450, // Radius
+        sf::degrees(2),
+        0.8, // Surface Friction
+        sf::Color(168, 168, 162) // Color
+    ); 
+
+    // Moon A1
+    Body* moonA1 = game.addSatellite(
+        planetA,
+        sf::degrees(180),
+        700,
+        0.0,
+        false,
+        5*pow(10, 5),
+        40.0,
+        sf::degrees(10),
+        0.2,
+        sf::Color(100, 130, 88)
+    );
+
+    // Planet B
+    Body* planetB = game.addSatellite(
+        starA,
+        sf::degrees(0),
+        35000,
+        0,
+        false,
+        65*pow(10, 5),
+        100.0,
+        sf::radians(0.108),
+        0.8,
+        sf::Color(21, 24, 79)
+    );
+
+    // Planet C
+    Body* planetC = game.addSatellite(
+        starA,
+        sf::degrees(-90),
+        84000,
+        0,
+        false,
+        18*pow(10, 7),
+        1000.0,
+        sf::degrees(0),
+        0.1,
+        sf::Color(150, 140, 126)
+    );
+
+
     game.run();
     
     return 0;
