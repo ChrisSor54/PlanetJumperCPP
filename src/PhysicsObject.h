@@ -3,12 +3,12 @@
 
 const float DEFAULT_FRICTION_COEFFICIENT = 0.6;
 const float GROUNDED_MARGIN = 0.1;
-const double COLLISION_REST_COEFFICIENT = 0.16;
+const double COLLISION_REST_COEFFICIENT = 2.0*0.16;
+const float ELASTICITY = 0.6;
 
 
 
 class PhysicsObject {
-    static constexpr float ELASTICITY = 0.5;
     
     public:
         int id;

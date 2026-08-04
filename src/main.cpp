@@ -74,11 +74,10 @@ void Game::run() {
         handleInput(dt);
         update(dt);
         draw(window);
-        
     }
 }
 
-#pragma enregion
+#pragma endregion
 
 // Spawning ----------------------------------------------------------------------------------------
 #pragma region Spawning
@@ -141,8 +140,6 @@ void Game::updateInputStates() {
     }
     inputManager.directionalInput = sf::Vector2f(0,0);
 
-    if (!window.hasFocus()) return;
-
     while (const std::optional event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>())
             window.close();
@@ -154,15 +151,17 @@ void Game::updateInputStates() {
             ));
             view.zoom(zoomScale);
             window.setView(view);
-        } 
+        }
+
+        if (!window.hasFocus()) return;
 
         if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>()) {   
             for (auto& [inputAction, key] : inputManager.bindings) {
                 if (key == keyReleased->code) {
                     inputManager.inputStates[inputAction].released = true;
                 }
-            } 
-        }     
+            }
+        }
     }
     for (auto& [inputAction, state] : inputManager.inputStates) {
         state.pressed = sf::Keyboard::isKeyPressed(inputManager.bindings[inputAction]);
@@ -190,7 +189,6 @@ void Game::handleInput(double dt) {
         } else if (inputManager.inputStates[InputAction::ZoomOut].released) {
             zoomCamera(0.5);
         }
-    
         if (inputManager.inputStates[InputAction::ToggleFreecam].released) {
             freecamEnabled = !freecamEnabled;
             sf::View view = window.getView();
@@ -201,12 +199,14 @@ void Game::handleInput(double dt) {
         }
         if (player.getState() == State::DEAD) {
             if (inputManager.directionalInput.lengthSquared() != 0) {
-                moveGlobalPositions(static_cast<Vector2d>(inputManager.directionalInput) * (double)(CAMERA_SPEED*dt*zoomScale));
+                moveGlobalPositions(static_cast<Vector2d>(inputManager.directionalInput)*(double)(CAMERA_SPEED*dt*zoomScale));
             }
         } else if (freecamEnabled) {
             if (inputManager.directionalInput.lengthSquared() != 0) {
-                moveCamera(inputManager.directionalInput.rotatedBy(globalRotation) * (float)(CAMERA_SPEED*dt*zoomScale));
-                inputManager.directionalInput = sf::Vector2f(0,0);
+                Vector2f cameraOffset = inputManager.directionalInput.rotatedBy(globalRotation)*(float)(CAMERA_SPEED*dt);
+                moveCamera(cameraOffset*zoomScale);
+                bgOffset -= cameraOffset*(float)BACKGROUND_SCROLL_SPEED;
+                inputManager.directionalInput = Vector2f(0,0);
             }
         }
         if (inputManager.inputStates[InputAction::SpeedUp].released) {
@@ -230,7 +230,6 @@ void Game::handleInput(double dt) {
             useParentAsReference = !useParentAsReference;
         }
     }
-    
 }
 
 #pragma endregion
@@ -239,10 +238,7 @@ void Game::handleInput(double dt) {
 #pragma region Update
 
 void Game::update(double dt) {
-
-    // player.setState(State::DEAD);
     bool playerActive = player.getState() != State::DEAD;
-
     player.parentObject = nullptr; // Reset parentObject to be determined on update
     player.hasCollided = false;
     player.isGrounded = false;
@@ -323,7 +319,6 @@ void Game::update(double dt) {
                     obj1->fixOverlap(player);
                     player.fixOverlap(*obj1);
                 }
-                
             }
         }
         player.updateSmoke(dt);
@@ -331,7 +326,7 @@ void Game::update(double dt) {
         if (playerActive) {
             updateRelativeVelocities(player.velocity);
             updateRelativePositions(CAMERA_LERP_SPEED, player.position);
-            if (player.getState() == State::GROUNDED && copyRotation && !freecamEnabled) {
+            if (player.state == State::GROUNDED && copyRotation && !freecamEnabled) {
                 updateRelativeRotations(CAMERA_LERP_SPEED, player.rotation);
             }
             //centerCamera(CAMERA_LERP_SPEED, player, false);
@@ -499,10 +494,10 @@ int main() {
         50000, // SemiMajorAxis
         0.0, // Eccentricity
         false, // CounterClockwise orbit
-        8*pow(10, 7), // Mass
+        10*pow(10, 7), // Mass
         450, // Radius
         sf::degrees(2),
-        0.8, // Surface Friction
+        1.0, // Surface Friction
         sf::Color(168, 168, 162) // Color
     ); 
 
@@ -511,12 +506,12 @@ int main() {
         planetA,
         sf::degrees(180),
         700,
-        0.0,
+        0.9,
         false,
         5*pow(10, 5),
         40.0,
-        sf::degrees(10),
-        0.2,
+        sf::degrees(45),
+        1.0,
         sf::Color(100, 130, 88)
     );
 

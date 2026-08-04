@@ -13,6 +13,7 @@ constexpr double PI = 3.14159265358979323846;
 // Aliases
 
 using Vector2d = sf::Vector2<double>;
+using Vector2f = sf::Vector2f;
 
 
 // Structs
@@ -24,6 +25,8 @@ enum class InputAction {
     Right,
     Jump,
     Walk,
+    RotateR,
+    RotateL,
     ZoomIn,
     ZoomOut,
     SpeedUp,
@@ -44,10 +47,12 @@ struct InputState {
 
 struct InputManager {
     std::unordered_map<InputAction, sf::Keyboard::Key> bindings = {
-        {InputAction::Up, sf::Keyboard::Key::Up},
-        {InputAction::Down, sf::Keyboard::Key::Down},
-        {InputAction::Left, sf::Keyboard::Key::Left},
-        {InputAction::Right, sf::Keyboard::Key::Right},
+        {InputAction::Up, sf::Keyboard::Key::W},
+        {InputAction::Down, sf::Keyboard::Key::S},
+        {InputAction::Left, sf::Keyboard::Key::A},
+        {InputAction::Right, sf::Keyboard::Key::D},
+        {InputAction::RotateR, sf::Keyboard::Key::E},
+        {InputAction::RotateL, sf::Keyboard::Key::Q},
         {InputAction::Jump, sf::Keyboard::Key::Space},
         {InputAction::Walk, sf::Keyboard::Key::LShift},
         {InputAction::ZoomIn, sf::Keyboard::Key::PageDown},

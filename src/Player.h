@@ -31,6 +31,7 @@ struct SmokeParticle {
 };
 
 const double MOVE_SPEED = 150.0;
+const sf::Angle ROTATION_SPEED = sf::degrees(30);
 const double THRUSTER_STRENGTH = 100.0;
 const double PLAYER_MASS = 5.0;
 const double COLLISION_RADIUS = 12.0;
@@ -126,6 +127,7 @@ class Player : public PhysObj {
         void chargeJump(double dt);
         void jump();
         void fly(Vector2d direction, double dt);
+        void rotate(sf::Angle rotationSpeed, double dt);
         void spawnSmokeParticle(double smokeVelocity, sf::Angle angleOffset, double lifespan);
         void playAnimation(Anim anim);
         void playAnimation(Anim anim, bool force);

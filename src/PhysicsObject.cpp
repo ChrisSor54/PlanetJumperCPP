@@ -34,7 +34,7 @@ void PhysObj::updateGravity(PhysObj& other, double dt) {
     double surfaceDist = getSurfaceDistance(other);
     velocity += gravityVector;
     //std::cout << "Body: " << std::to_string(id) << std::endl;
-    if (surfaceDist <= 2.0*GROUNDED_MARGIN) {
+    if (surfaceDist <= GROUNDED_MARGIN) {
         //std::cout << "Gravity" << std::endl;
         hasCollided = true;
         if (other.mass >= mass) {
@@ -63,9 +63,9 @@ void PhysObj::updateCollision(PhysObj& other, double dt) {
         Vector2d collisionNormal = normal * collisionImpulse.dot(normal);
         if (collisionNormal.lengthSquared() <= restThreshold) {
             double surfaceDistance = getSurfaceDistance(other);
-            // if (surfaceDistance > 0) {
-            //     fixOverlap(other, true);
-            // }
+            if (surfaceDistance > 0) {
+                fixOverlap(other, true);
+            }
             if (other.mass >= mass) {
                 parentObject = &other;
                 isGrounded = true;
@@ -182,7 +182,7 @@ Vector2d PhysObj::getCollisionImpulse(PhysObj& other, double sqrRestThreshold) {
         collisionImpulse = -(vNormal)/(1/mass + 1/other.mass) * normal; // Nullify soft collisions
     }
     double jNormal = collisionImpulse.dot(normal);
-    double totalSurfaceVelocity = (rotationalVelocity + other.rotationalVelocity).asRadians()*(other.radius + radius);
+    double totalSurfaceVelocity = (rotationalVelocity.asRadians()*radius) + other.rotationalVelocity.asRadians()*(other.radius + radius);
     relativeVelocity -= normal.rotatedBy(sf::degrees(-90)) * totalSurfaceVelocity;
     Vector2d vTangentVel = relativeVelocity - normal * relativeVelocity.dot(normal);
     double tangentSpeed = vTangentVel.length();
@@ -303,11 +303,11 @@ std::vector<Vector2d> PhysicsObject::getOrbitalPath(double duration, int resolut
 
 void PhysObj::drawOrbitalPath(sf::RenderWindow& window, int resolutionScale) {
     if (!parentObject) return;
-    double period = getOrbitalPeriod(*parentObject);
+    double period = getOrbitalPeriod(*parentObject) + 1;
     if (period <= 0.0) {
         period = 5.0; // Arbitrary path length for objects not in orbit
     }
-    period = std::min(period, 360.0);
+    period = std::min(period, 500.0);
     resolutionScale /= (sqrt(period)/2.0);
     drawOrbitalPath(window, period, resolutionScale);
 }

@@ -137,10 +137,16 @@ void pl::handleInput(InputManager& input, sf::RenderWindow& window, double dt) {
             if (retrograde.lengthSquared() > 1.0) {
                 fly(retrograde.normalized(), dt);
             }
-        } else if (dirInput.lengthSquared() > 0) { // Flying
-            sf::Angle viewRotation = window.getView().getRotation();
-            Vector2d flyDirection = dirInput.rotatedBy(viewRotation);
-            fly(flyDirection, dt);
+        } else {
+            if (dirInput.lengthSquared() > 0) { // Flying
+                sf::Angle viewRotation = window.getView().getRotation();
+                Vector2d flyDirection = dirInput.rotatedBy(viewRotation);
+                fly(flyDirection, dt);
+            }
+            if (input.inputStates[InputAction::RotateR].pressed || input.inputStates[InputAction::RotateL].pressed) {
+                sf::Angle rotationSpeed = (input.inputStates[InputAction::RotateR].pressed) ? ROTATION_SPEED : -ROTATION_SPEED;
+                rotate(rotationSpeed, dt);
+            }
         }
     }
 }
@@ -164,6 +170,13 @@ void pl::fly(Vector2d direction, double dt) {
         smokeSpawnCooldown = SMOKE_SPAWN_COOLDOWN;
     }
     rotationalVelocity = sf::degrees(0);
+}
+
+void pl::rotate(sf::Angle rotationSpeed, double dt) {
+    rotationalVelocity += rotationSpeed*dt;
+    sf::Angle angleOffset = sf::degrees(((double) 2*rand()/(double)RAND_MAX - 1.0)*2*SMOKE_ANGLE_OFFSET) - (rotationSpeed);
+    float smokeVelocity = ((double) rand()/(double)RAND_MAX )*(MAX_SMOKE_VELOCITY-MIN_SMOKE_VELOCITY) + MIN_SMOKE_VELOCITY;
+    spawnSmokeParticle(smokeVelocity, angleOffset, SMOKE_LIFESPAN);
 }
 
 
