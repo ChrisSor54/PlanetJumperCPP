@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <vector>
 
+
+// Includes are used by multiple files
+
+
 // Constants
 const double G = 1.0;
 constexpr double PI = 3.14159265358979323846;
@@ -15,8 +19,10 @@ constexpr double PI = 3.14159265358979323846;
 using Vector2d = sf::Vector2<double>;
 using Vector2f = sf::Vector2f;
 
+using sfKey = sf::Keyboard::Scan;
 
-// Structs
+
+// Input
 
 enum class InputAction {
     Up,
@@ -37,6 +43,7 @@ enum class InputAction {
     DEBUG,
     DEBUG_ShowVelocities,
     DEBUG_ToggleReference,
+    DEBUG_EnlargePlanets,
     COUNT
 };
 
@@ -46,27 +53,38 @@ struct InputState {
 };
 
 struct InputManager {
-    std::unordered_map<InputAction, sf::Keyboard::Key> bindings = {
-        {InputAction::Up, sf::Keyboard::Key::W},
-        {InputAction::Down, sf::Keyboard::Key::S},
-        {InputAction::Left, sf::Keyboard::Key::A},
-        {InputAction::Right, sf::Keyboard::Key::D},
-        {InputAction::RotateR, sf::Keyboard::Key::E},
-        {InputAction::RotateL, sf::Keyboard::Key::Q},
-        {InputAction::Jump, sf::Keyboard::Key::Space},
-        {InputAction::Walk, sf::Keyboard::Key::LShift},
-        {InputAction::ZoomIn, sf::Keyboard::Key::PageDown},
-        {InputAction::ZoomOut, sf::Keyboard::Key::PageUp},
-        {InputAction::SpeedUp, sf::Keyboard::Key::Period},
-        {InputAction::SpeedDown, sf::Keyboard::Key::Comma},
-        {InputAction::ResetTimeScale, sf::Keyboard::Key::Slash},
-        {InputAction::ToggleRotation, sf::Keyboard::Key::R},
-        {InputAction::ToggleFreecam, sf::Keyboard::Key::F},
-        {InputAction::DEBUG, sf::Keyboard::Key::LControl},
-        {InputAction::DEBUG_ShowVelocities, sf::Keyboard::Key::S},
-        {InputAction::DEBUG_ToggleReference, sf::Keyboard::Key::R},
+    std::unordered_map<InputAction, std::vector<sfKey>> bindings = {
+        {InputAction::Up,                       {sfKey::W, sfKey::Up}},
+        {InputAction::Down,                     {sfKey::S, sfKey::Down}},
+        {InputAction::Left,                     {sfKey::A, sfKey::Left}},
+        {InputAction::Right,                    {sfKey::D, sfKey::Right}},
+        {InputAction::RotateR,                  {sfKey::E}},
+        {InputAction::RotateL,                  {sfKey::Q}},
+        {InputAction::Jump,                     {sfKey::Space}},
+        {InputAction::Walk,                     {sfKey::LShift}},
+        {InputAction::ZoomIn,                   {sfKey::PageDown}},
+        {InputAction::ZoomOut,                  {sfKey::PageUp}},
+        {InputAction::SpeedUp,                  {sfKey::Period}},
+        {InputAction::SpeedDown,                {sfKey::Comma}},
+        {InputAction::ResetTimeScale,           {sfKey::Slash}},
+        {InputAction::ToggleRotation,           {sfKey::R}},
+        {InputAction::ToggleFreecam,            {sfKey::F}},
+        {InputAction::DEBUG,                    {sfKey::LControl}},
+        {InputAction::DEBUG_ShowVelocities,     {sfKey::S}},
+        {InputAction::DEBUG_ToggleReference,    {sfKey::R}},
+        {InputAction::DEBUG_EnlargePlanets,     {sfKey::E}},
     };
 
-    sf::Vector2f directionalInput = sf::Vector2f(0,0);
+    Vector2f directionalInput = Vector2f(0,0);
     std::unordered_map<InputAction, InputState> inputStates = {};
 };
+
+
+struct BodyTexture {
+    int xOrigin = 0;
+    int yOrigin = 0;
+    int width = 32;
+    int height = 32;
+    bool repeat = true;
+};
+

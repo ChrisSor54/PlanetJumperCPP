@@ -7,7 +7,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(SFML 3 COMPONENTS Graphics Window System REQUIRED)
 
-add_executable(PlanetJumper src/main.cpp
+add_executable(PlanetJumper
+    src/main.cpp
+    src/Game.cpp
     src/PhysicsObject.cpp
     src/Player.cpp)
 

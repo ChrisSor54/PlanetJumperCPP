@@ -7,6 +7,14 @@ const double COLLISION_REST_COEFFICIENT = 2.0*0.16;
 const float ELASTICITY = 0.6;
 
 
+enum class MatterState {
+    SOLID,
+    LIQUID,
+    GAS,
+    PLASMA
+};
+
+
 
 class PhysicsObject {
     
@@ -19,15 +27,17 @@ class PhysicsObject {
         double radius;
         sf::Angle rotation;
         sf::Angle rotationalVelocity;
+        float surfaceFriction; // Must be between 0 and 1 
         float elasticity;
+        MatterState matterState;
+
         PhysicsObject* parentObject = nullptr;
 
         bool hasCollided = false;
         bool isGrounded = false;
 
         // Methods
-        PhysicsObject(double mass, double radius);
-        PhysicsObject(Vector2d position, Vector2d velocity, double mass, double radius, sf::Angle rotationalVelocity, float surfaceFriction);
+        PhysicsObject(Vector2d position, Vector2d velocity, double mass, double radius, sf::Angle rotationalVelocity, float surfaceFriction, MatterState state);
         void updateGravity(PhysicsObject& other, double dt);
         void updateCollision(PhysicsObject& other, double dt);
         void updateVelocity();
@@ -40,14 +50,15 @@ class PhysicsObject {
 
 
         virtual void draw(sf::RenderWindow& window) = 0;
-        virtual void drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale) = 0;
+        virtual void draw(sf::RenderWindow& window, Vector2f scale) = 0;
+        virtual void drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale);
         void drawOrbitalPath(sf::RenderWindow& window, int resolutionScale);
         void drawOrbitalPath(sf::RenderWindow& window, double duration, int resolutionScale);
         virtual ~PhysicsObject() {};
 
     protected:
         Vector2d velocityBuffer;
-        float surfaceFriction; // Must be between 0 and 1        
+               
 
         // void updateVirtualForces(PhysicsObject& other, double dt);
         // Vector2d getIntegratedForces(PhysicsObject& other, double dt, double resolution);
@@ -64,6 +75,7 @@ class PhysicsObject {
         std::vector<Vector2d> getOrbitalPath(double duration, int resolutionScale);
 };
 
+
 class Body : public PhysicsObject {
 
     public:
@@ -78,6 +90,7 @@ class Body : public PhysicsObject {
             double radius,
             sf::Angle rotationalVelocity,
             float surfaceFriction,
+            MatterState state,
             sf::Color color
         );
         Body(
@@ -87,17 +100,18 @@ class Body : public PhysicsObject {
             double radius,
             sf::Angle rotationalVelocity,
             float surfaceFriction,
+            MatterState state,
             sf::Color color,
-            bool drawTexture
+            BodyTexture bodyTexture
         );
         
         void draw(sf::RenderWindow& window) override;
-        void drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale) override;
-
+        void draw(sf::RenderWindow& window, Vector2f scale) override;
     private:
         sf::CircleShape shape;
-        static sf::Texture texture;
-        static bool textureLoaded;
+        sf::Texture texture;
+        static sf::Image textureSheet;
+        static bool textureSheetLoaded;
 
         
 };

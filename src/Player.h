@@ -74,12 +74,13 @@ class Player : public PhysObj {
 
         State getState();
         void updateGravity(PhysObj& other, double dt);
+        void updateCollision(PhysicsObject& other, double dt);
         void setState(State newState);
         void handleInput(InputManager& input, sf::RenderWindow& window, double dt);
         void update(double dt);
         void updateSmoke(double dt);
         void draw(sf::RenderWindow& window) override;
-        void drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale) override;
+        void draw(sf::RenderWindow& window, Vector2f scale) override;
         void drawSmoke(sf::RenderWindow& window);
 
         
@@ -102,7 +103,7 @@ class Player : public PhysObj {
                 .row = 0,
                 .column = 0,
                 .numSprites = 4,
-                .animSpeed = 6
+                .animSpeed = 0.05f
             }},
             { Anim::FLYING, {
                 .row = 1,
@@ -132,6 +133,8 @@ class Player : public PhysObj {
         void playAnimation(Anim anim);
         void playAnimation(Anim anim, bool force);
         void playAnimation(Anim anim, bool force, float customSpeed);
+        Vector2d getCollisionImpulse(PhysicsObject& other);
+        Vector2d getCollisionImpulse(PhysicsObject& other, double sqrRestThreshold);
         void updateAnimation(float dt);
 
 };

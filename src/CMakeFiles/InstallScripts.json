@@ -1,7 +1,7 @@
 {
 	"InstallScripts" : 
 	[
-		"E:/Projects/C++/PlanetJumper/src/cmake_install.cmake"
+		"/home/chrissor/Projects/C++/PlanetJumper/src/cmake_install.cmake"
 	],
 	"Parallel" : false
 }

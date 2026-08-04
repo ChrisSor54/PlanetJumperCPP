@@ -1,12 +1,10 @@
-#include "includes.h"
-
 #include "Player.h"
 
 using pl = Player;
 
 
 pl::Player() 
-    : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, sf::degrees(0), PLAYER_FRICTION), sprite(sf::Sprite(spriteTexture.getTexture())) {
+    : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, sf::degrees(0), PLAYER_FRICTION, MatterState::SOLID), sprite(sf::Sprite(spriteTexture.getTexture())) {
     elasticity = PLAYER_ELASTICITY;
 
     sf::Color playerColor(250, 250, 250);
@@ -91,8 +89,47 @@ void pl::updateGravity(PhysObj& other, double dt) {
     }
 }
 
+void pl::updateCollision(PhysObj& other, double dt) {
+    if (checkCollision(other, dt)) {
+        Vector2d normal = (other.position - position).normalized();
+        double restThreshold = (COLLISION_REST_COEFFICIENT*getGravityVector(other)*mass).lengthSquared();
+        Vector2d collisionImpulse = getCollisionImpulse(other, restThreshold);        
+        Vector2d collisionNormal = normal * collisionImpulse.dot(normal);
+        if (collisionNormal.lengthSquared() <= restThreshold) {
+            double surfaceDistance = getSurfaceDistance(other);
+            if (surfaceDistance > 0) {
+                fixOverlap(other, true);
+            }
+            if (other.mass >= mass  && other.matterState == MatterState::SOLID) {
+                parentObject = &other;
+                isGrounded = true;
+            }
+        }
+        applyImpulse(collisionImpulse);
+        hasCollided = true;
+    }
+}
+
 #pragma endregion
 
+// Physics Overloads -------------------------------------------------------------------------------
+#pragma region Physics
+
+Vector2d pl::getCollisionImpulse(PhysObj& other) {
+    double sqrRestThreshold = (COLLISION_REST_COEFFICIENT*getGravityVector(other)*mass).lengthSquared();
+    return getCollisionImpulse(other, sqrRestThreshold);
+}
+
+Vector2d pl::getCollisionImpulse(PhysObj& other, double sqrRestThreshold) {
+    sf::Angle rotVel = rotationalVelocity;
+    rotationalVelocity += other.rotationalVelocity;
+    Vector2d collisionImpulse = PhysObj::getCollisionImpulse(other, sqrRestThreshold);
+    rotationalVelocity = rotVel;
+    return collisionImpulse;
+}
+
+
+#pragma endregion
 
 // Input & Actions ---------------------------------------------------------------------------------
 #pragma region Input & Actions
@@ -126,7 +163,8 @@ void pl::handleInput(InputManager& input, sf::RenderWindow& window, double dt) {
                     movementVector = movementVector.normalized() * clampedSpeed;
                 }
                 velocity += movementVector;
-                playAnimation(Anim::WALKING, false, moveSpeed/20);
+                float moveAnimSpeed = animations[Anim::WALKING].animSpeed * moveSpeed;
+                playAnimation(Anim::WALKING, false, moveAnimSpeed);
             } else {
                 playAnimation(Anim::IDLE);
             }
@@ -209,7 +247,6 @@ void pl::jump() {
     }
     Vector2d normal = (position - parentObject->position).normalized();
     double jumpChargeValue = (MAX_JUMP_CHARGE-MIN_JUMP_CHARGE)*jumpCharge + MIN_JUMP_CHARGE;
-    std::cout << std::to_string(jumpChargeValue) << std::endl;
     Vector2d jumpImpulse = normal*jumpChargeValue;
     applyImpulse(jumpImpulse);
     parentObject->applyImpulse(-jumpImpulse);
@@ -281,19 +318,11 @@ void pl::draw(sf::RenderWindow& window) {
     window.draw(sprite);
 }
 
-void pl::drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale) {
-    Vector2d relativeVelocity = velocity - referenceVelocity;
-    Vector2d center = static_cast<Vector2d>(window.getSize())/2.0;
-
-    sf::Color lineColor = sf::Color(255,0,0);
-
-    sf::VertexArray velocityLine(sf::PrimitiveType::Lines, 2); 
-    velocityLine[0].position = static_cast<sf::Vector2f>(position + center);
-    velocityLine[0].color = lineColor;
-    velocityLine[1].position = static_cast<sf::Vector2f>(position + center + relativeVelocity*scale);
-    velocityLine[1].color = lineColor;
-
-    window.draw(velocityLine);
+void pl::draw(sf::RenderWindow& window, Vector2f scale) {
+    Vector2f currentScale = sprite.getScale();
+    sprite.setScale(scale);
+    draw(window);
+    sprite.setScale(currentScale);
 }
 
 #pragma endregion

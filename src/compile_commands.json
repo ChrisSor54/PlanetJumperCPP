@@ -1,20 +1,26 @@
 [
 {
-  "directory": "E:/Projects/C++/PlanetJumper/src",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -std=gnu++20 -o CMakeFiles\\PlanetJumper.dir\\main.cpp.obj -c E:\\Projects\\C++\\PlanetJumper\\src\\main.cpp",
-  "file": "E:/Projects/C++/PlanetJumper/src/main.cpp",
-  "output": "E:/Projects/C++/PlanetJumper/src/CMakeFiles/PlanetJumper.dir/main.cpp.obj"
+  "directory": "/home/chrissor/Projects/C++/PlanetJumper/src",
+  "command": "/usr/bin/c++   -std=gnu++20 -o CMakeFiles/PlanetJumper.dir/main.cpp.o -c /home/chrissor/Projects/C++/PlanetJumper/src/main.cpp",
+  "file": "/home/chrissor/Projects/C++/PlanetJumper/src/main.cpp",
+  "output": "CMakeFiles/PlanetJumper.dir/main.cpp.o"
 },
 {
-  "directory": "E:/Projects/C++/PlanetJumper/src",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -std=gnu++20 -o CMakeFiles\\PlanetJumper.dir\\PhysicsObject.cpp.obj -c E:\\Projects\\C++\\PlanetJumper\\src\\PhysicsObject.cpp",
-  "file": "E:/Projects/C++/PlanetJumper/src/PhysicsObject.cpp",
-  "output": "E:/Projects/C++/PlanetJumper/src/CMakeFiles/PlanetJumper.dir/PhysicsObject.cpp.obj"
+  "directory": "/home/chrissor/Projects/C++/PlanetJumper/src",
+  "command": "/usr/bin/c++   -std=gnu++20 -o CMakeFiles/PlanetJumper.dir/Game.cpp.o -c /home/chrissor/Projects/C++/PlanetJumper/src/Game.cpp",
+  "file": "/home/chrissor/Projects/C++/PlanetJumper/src/Game.cpp",
+  "output": "CMakeFiles/PlanetJumper.dir/Game.cpp.o"
 },
 {
-  "directory": "E:/Projects/C++/PlanetJumper/src",
-  "command": "C:\\msys64\\mingw64\\bin\\c++.exe -std=gnu++20 -o CMakeFiles\\PlanetJumper.dir\\Player.cpp.obj -c E:\\Projects\\C++\\PlanetJumper\\src\\Player.cpp",
-  "file": "E:/Projects/C++/PlanetJumper/src/Player.cpp",
-  "output": "E:/Projects/C++/PlanetJumper/src/CMakeFiles/PlanetJumper.dir/Player.cpp.obj"
+  "directory": "/home/chrissor/Projects/C++/PlanetJumper/src",
+  "command": "/usr/bin/c++   -std=gnu++20 -o CMakeFiles/PlanetJumper.dir/PhysicsObject.cpp.o -c /home/chrissor/Projects/C++/PlanetJumper/src/PhysicsObject.cpp",
+  "file": "/home/chrissor/Projects/C++/PlanetJumper/src/PhysicsObject.cpp",
+  "output": "CMakeFiles/PlanetJumper.dir/PhysicsObject.cpp.o"
+},
+{
+  "directory": "/home/chrissor/Projects/C++/PlanetJumper/src",
+  "command": "/usr/bin/c++   -std=gnu++20 -o CMakeFiles/PlanetJumper.dir/Player.cpp.o -c /home/chrissor/Projects/C++/PlanetJumper/src/Player.cpp",
+  "file": "/home/chrissor/Projects/C++/PlanetJumper/src/Player.cpp",
+  "output": "CMakeFiles/PlanetJumper.dir/Player.cpp.o"
 }
 ]
