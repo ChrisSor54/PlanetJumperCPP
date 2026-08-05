@@ -51,6 +51,13 @@ build CMakeFiles/PlanetJumper.dir/main.cpp.obj: CXX_COMPILER__PlanetJumper_unsca
   OBJECT_FILE_DIR = CMakeFiles\PlanetJumper.dir
   TARGET_SUPPORT_DIR = CMakeFiles\PlanetJumper.dir
 
+build CMakeFiles/PlanetJumper.dir/Game.cpp.obj: CXX_COMPILER__PlanetJumper_unscanned_ E$:/Projects/C++/PlanetJumper/src/Game.cpp || cmake_object_order_depends_target_PlanetJumper
+  DEP_FILE = CMakeFiles\PlanetJumper.dir\Game.cpp.obj.d
+  FLAGS = -std=gnu++20
+  OBJECT_DIR = CMakeFiles\PlanetJumper.dir
+  OBJECT_FILE_DIR = CMakeFiles\PlanetJumper.dir
+  TARGET_SUPPORT_DIR = CMakeFiles\PlanetJumper.dir
+
 build CMakeFiles/PlanetJumper.dir/PhysicsObject.cpp.obj: CXX_COMPILER__PlanetJumper_unscanned_ E$:/Projects/C++/PlanetJumper/src/PhysicsObject.cpp || cmake_object_order_depends_target_PlanetJumper
   DEP_FILE = CMakeFiles\PlanetJumper.dir\PhysicsObject.cpp.obj.d
   FLAGS = -std=gnu++20
@@ -73,10 +80,10 @@ build CMakeFiles/PlanetJumper.dir/Player.cpp.obj: CXX_COMPILER__PlanetJumper_uns
 #############################################
 # Link the executable PlanetJumper.exe
 
-build PlanetJumper.exe: CXX_EXECUTABLE_LINKER__PlanetJumper_ CMakeFiles/PlanetJumper.dir/main.cpp.obj CMakeFiles/PlanetJumper.dir/PhysicsObject.cpp.obj CMakeFiles/PlanetJumper.dir/Player.cpp.obj | C$:/msys64/mingw64/lib/libsfml-graphics.dll.a C$:/msys64/mingw64/lib/libsfml-window.dll.a C$:/msys64/mingw64/lib/libsfml-system.dll.a
+build PlanetJumper.exe: CXX_EXECUTABLE_LINKER__PlanetJumper_ CMakeFiles/PlanetJumper.dir/main.cpp.obj CMakeFiles/PlanetJumper.dir/Game.cpp.obj CMakeFiles/PlanetJumper.dir/PhysicsObject.cpp.obj CMakeFiles/PlanetJumper.dir/Player.cpp.obj | C$:/msys64/mingw64/lib/libsfml-graphics.dll.a C$:/msys64/mingw64/lib/libsfml-window.dll.a C$:/msys64/mingw64/lib/libsfml-system.dll.a
   LINK_LIBRARIES = C:/msys64/mingw64/lib/libsfml-graphics.dll.a  C:/msys64/mingw64/lib/libsfml-window.dll.a  C:/msys64/mingw64/lib/libsfml-system.dll.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\PlanetJumper.dir
-  POST_BUILD = C:\WINDOWS\system32\cmd.exe /C "cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/SpaceFont_big.png E:/Projects/C++/PlanetJumper/src/assets/SpaceFont_big.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/SpaceFont_small.png E:/Projects/C++/PlanetJumper/src/assets/SpaceFont_small.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/astronaut.png E:/Projects/C++/PlanetJumper/src/assets/astronaut.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/astronaut_body_mask.png E:/Projects/C++/PlanetJumper/src/assets/astronaut_body_mask.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/background.png E:/Projects/C++/PlanetJumper/src/assets/background.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/body_texture.png E:/Projects/C++/PlanetJumper/src/assets/body_texture.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/font.png E:/Projects/C++/PlanetJumper/src/assets/font.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/testBackground.png E:/Projects/C++/PlanetJumper/src/assets/testBackground.png"
+  POST_BUILD = C:\WINDOWS\system32\cmd.exe /C "cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/SpaceFont_big.png E:/Projects/C++/PlanetJumper/src/assets/SpaceFont_big.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/SpaceFont_small.png E:/Projects/C++/PlanetJumper/src/assets/SpaceFont_small.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/astronaut.png E:/Projects/C++/PlanetJumper/src/assets/astronaut.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/astronaut_body_mask.png E:/Projects/C++/PlanetJumper/src/assets/astronaut_body_mask.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/background.png E:/Projects/C++/PlanetJumper/src/assets/background.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/body_texture.png E:/Projects/C++/PlanetJumper/src/assets/body_texture.png && cd /D E:\Projects\C++\PlanetJumper\src && C:\msys64\mingw64\bin\cmake.exe -E copy E:/Projects/C++/PlanetJumper/src/assets/font.png E:/Projects/C++/PlanetJumper/src/assets/font.png"
   PRE_LINK = cd .
   TARGET_FILE = PlanetJumper.exe
   TARGET_IMPLIB = libPlanetJumper.dll.a

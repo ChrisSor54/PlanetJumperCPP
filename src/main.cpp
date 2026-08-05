@@ -60,7 +60,7 @@ int main() {
         false, // CounterClockwise orbit
         10*pow(10, 7), // Mass
         450, // Radius
-        sf::degrees(2),
+        sf::radians(0.1),
         0.6, // Surface Friction
         MatterState::SOLID, // State
         sf::Color(168, 168, 162), // Color
@@ -76,7 +76,7 @@ int main() {
         false,
         5*pow(10, 5),
         40.0,
-        sf::degrees(10),
+        sf::radians(0.48686449556),
         1.0,
         MatterState::SOLID, // State
         sf::Color(255, 255, 255),
@@ -131,7 +131,57 @@ int main() {
         homeMoonTexture
     );
 
-    game.teleportPlayerTo(planetA);
+    // Planet E
+    Body* planetE = game.addSatellite(
+        starA, // Parent Body
+        sf::degrees(0), // Angle
+        205000, // SemiMajorAxis
+        0.2, // Eccentricity
+        false, // CounterClockwise orbit
+        2*pow(10, 9), // Mass
+        550, // Radius
+        sf::radians(0.481819315439),
+        0.8, // Surface Friction
+        MatterState::SOLID, // State
+        sf::Color(0, 168, 0), // Color
+        defaultTexture
+    );
+
+    // Moon E1
+    Body* moonE1 = game.addSatellite(
+        planetE, // Parent Body
+        sf::degrees(0), // Angle
+        2050, // SemiMajorAxis
+        0.0, // Eccentricity
+        false, // CounterClockwise orbit
+        7*pow(10, 6), // Mass
+        100, // Radius
+        sf::radians(1),
+        0.8, // Surface Friction
+        MatterState::SOLID, // State
+        sf::Color(0, 168, 210), // Color
+        homeMoonTexture
+    );
+
+    // Moon E2
+    Body* moonE2 = game.addSatellite(
+        planetE, // Parent Body
+        sf::degrees(180), // Angle
+        2050, // SemiMajorAxis
+        0.0, // Eccentricity
+        false, // CounterClockwise orbit
+        7*pow(10, 6), // Mass
+        50, // Radius
+        sf::radians(2),
+        0.8, // Surface Friction
+        MatterState::SOLID, // State
+        sf::Color(255, 168, 0), // Color
+        homeMoonTexture
+    );
+
+
+
+    game.teleportPlayerTo(planetE);
 
     game.run();
     

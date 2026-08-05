@@ -40,7 +40,7 @@ void PhysObj::updateGravity(PhysObj& other, double dt) {
         }
     }
     
-    if (other.mass >= mass) {
+    if (other.mass >= 2*mass) {
         if (!parentObject) {
             parentObject = &other;
         } else if (!isGrounded && parentObject != &other && getGravityVector(other, 3).lengthSquared() > (getGravityVector(*parentObject, 3)).lengthSquared()) {
@@ -60,7 +60,7 @@ void PhysObj::updateCollision(PhysObj& other, double dt) {
         Vector2d collisionNormal = normal * collisionImpulse.dot(normal);
         if (matterState == MatterState::SOLID && other.matterState == MatterState::SOLID && collisionNormal.lengthSquared() <= restThreshold) {
             double surfaceDistance = getSurfaceDistance(other);
-            if (other.mass >= mass) {
+            if (other.mass >= 2*mass) {
                 parentObject = &other;
                 isGrounded = true;
             }

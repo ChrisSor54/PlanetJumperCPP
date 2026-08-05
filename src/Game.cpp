@@ -197,17 +197,18 @@ void Game::updateInputStates() {
             window.setView(view);
         }
 
-        if (!window.hasFocus()) return;
-
-        if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>()) {   
-            for (auto& [inputAction, keybinds] : inputManager.bindings) {
-                for (auto& key : keybinds)
-                    if (key == keyReleased->scancode)
-                        inputManager.inputStates[inputAction].released = true;
-                    
+        if (window.hasFocus()) {
+            if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>()) {   
+                for (auto& [inputAction, keybinds] : inputManager.bindings) {
+                    for (auto& key : keybinds)
+                        if (key == keyReleased->scancode)
+                            inputManager.inputStates[inputAction].released = true;
+                        
+                }
             }
         }
     }
+    if (!window.hasFocus()) return;
     for (auto& [inputAction, state] : inputManager.inputStates) {
         for (auto& key : inputManager.bindings[inputAction])
             if (sf::Keyboard::isKeyPressed(key)) state.pressed = true;
@@ -441,10 +442,16 @@ void Game::draw(sf::RenderWindow& window) {
     window.clear();
     drawBackground(window, dt);
     player.drawSmoke(window);
-    for (auto& obj : objects) {
-        if (drawVelocities && obj->parentObject) {
-            obj->drawOrbitalPath(window, VISUAL_ORBIT_RESOLUTION_SCALE);
+
+    if (drawVelocities) {
+        for (auto& obj : objects) {
+            if (obj->parentObject) {
+                obj->drawOrbitalPath(window, VISUAL_ORBIT_RESOLUTION_SCALE);
+            }
         }
+    }
+    
+    for (auto& obj : objects) {
         if (enlargePlanets) {
             obj->draw(window, Vector2f(1.f, 1.f)*(1.f + (float)(500.f/obj->radius)));
         } else {
@@ -478,7 +485,7 @@ void Game::draw(sf::RenderWindow& window) {
 void Game::drawBackground(sf::RenderWindow& window, double dt) {
     sf::View view = window.getView();
     if (!freecamEnabled) {
-        bgOffset += static_cast<sf::Vector2f>(globalVelocity*BACKGROUND_SCROLL_SPEED*dt)/zoomScale;
+        bgOffset += timeScale*static_cast<sf::Vector2f>(globalVelocity*BACKGROUND_SCROLL_SPEED*dt)/zoomScale;
     }
     int windowX = static_cast<int>(window.getSize().x);
     int windowY = static_cast<int>(window.getSize().y);
