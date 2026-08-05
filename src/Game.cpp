@@ -10,6 +10,15 @@
 Game::Game(unsigned int window_w, unsigned int window_h) 
     : bgSprite(bgTexture) {
     window.create(sf::VideoMode({window_w, window_h}), "Planet Jumper");
+    
+    Vector2f viewSize((float)window_w, (float)window_h);
+    cameraView.setSize(viewSize);
+    uiView.setSize(viewSize);
+    cameraView.setCenter(viewSize/2.f);
+    uiView.setCenter(viewSize/2.f);
+    window.setView(cameraView);
+
+
     if (!bgTexture.loadFromFile("assets/background.png")) {
         throw std::invalid_argument("Bad background texture");
     }
@@ -18,6 +27,10 @@ Game::Game(unsigned int window_w, unsigned int window_h)
 
     for (int i=0; i<(int)InputAction::COUNT; i++) {
         inputManager.inputStates[(InputAction) i] = InputState{false, false};
+    }
+
+    if (!fontSpritesheet.loadFromFile("assets/SpaceFont_big.png")) {
+        throw std::invalid_argument("Bad text character texture");
     }
 }
 
@@ -189,12 +202,12 @@ void Game::updateInputStates() {
             window.close();
 
         else if (const auto* resized = event->getIf<sf::Event::Resized>()) {
-            sf::View view(sf::FloatRect(
-                {0.f, 0.f},
-                {static_cast<float>(resized->size.x), static_cast<float>(resized->size.y)}
-            ));
-            view.zoom(zoomScale);
-            window.setView(view);
+            Vector2f viewSize((float)resized->size.x, (float)resized->size.y);
+            cameraView.setSize(viewSize);
+            uiView.setSize(viewSize);
+            cameraView.zoom(zoomScale);
+            cameraView.setCenter(viewSize/2.f);
+            uiView.setCenter(viewSize/2.f);
         }
 
         if (window.hasFocus()) {
@@ -232,17 +245,15 @@ void Game::updateInputStates() {
 void Game::handleInput(double dt) {
     if (!inputManager.inputStates[InputAction::DEBUG].pressed) {
         if (inputManager.inputStates[InputAction::ZoomIn].released) {
-            zoomCamera(2.0);
+            zoomCamera(ZOOM_SPEED);
         } else if (inputManager.inputStates[InputAction::ZoomOut].released) {
-            zoomCamera(0.5);
+            zoomCamera(1/ZOOM_SPEED);
         }
         if (inputManager.inputStates[InputAction::ToggleFreecam].released) {
             freecamEnabled = !freecamEnabled;
-            sf::View view = window.getView();
             float windowWidth = window.getSize().x;
             float windowHeight = window.getSize().y;
-            view.setCenter({windowWidth/2.f, windowHeight/2.f});
-            window.setView(view);
+            cameraView.setCenter({windowWidth/2.f, windowHeight/2.f});
         }
         if (player.getState() == State::DEAD) {
             if (inputManager.directionalInput.lengthSquared() != 0) {
@@ -266,6 +277,12 @@ void Game::handleInput(double dt) {
 
         if (inputManager.inputStates[InputAction::ToggleRotation].released) {
             copyRotation = !copyRotation;
+        }
+
+        int rotation = inputManager.inputStates[InputAction::RotateR].pressed - inputManager.inputStates[InputAction::RotateL].pressed;
+        if (player.state != State::GROUNDED && rotation != 0) {
+            sf::Angle currentRotation = window.getView().getRotation();
+            rotateCamera(currentRotation + sf::degrees(2)*rotation*dt*CAMERA_ROTATE_SPEED);
         }
         
     } else { // Debug
@@ -342,11 +359,11 @@ void Game::update(double dt) {
             player.updateVelocity();
         }
 
-        globalOrigin += globalVelocity*dt;
+        globalOrigin += globalVelocity*delta;
 
         if (playerActive) {
             player.update(delta);
-            player.handleInput(inputManager, window, dt);
+            player.handleInput(inputManager, window, delta);
         }
 
         // Update positions based on velocities
@@ -370,13 +387,13 @@ void Game::update(double dt) {
                 }
             }
         }
-        player.updateSmoke(dt);
+        player.updateSmoke(delta);
         //std::cout << std::to_string((player.velocity - player.parentObject->velocity).length()) << std::endl;
         if (playerActive) {
             updateRelativeVelocities(player.velocity);
             updateRelativePositions(player.position, CAMERA_LERP_SPEED);
             if (player.state == State::GROUNDED && copyRotation && !freecamEnabled) {
-                updateRelativeRotations(player.rotation, CAMERA_LERP_SPEED);
+                updateRelativeRotations(player.rotation, CAMERA_ROTATE_SPEED);
             }
             //centerCamera(CAMERA_LERP_SPEED, player, false);
             if (freecamEnabled) {
@@ -410,9 +427,8 @@ void Game::updateRelativePositions(Vector2d newOrigin, float lerpScale) {
 void Game::updateRelativeRotations(sf::Angle newRotation, float lerpScale) {
     float t = lerpScale*dt*zoomScale;
     t = std::clamp(t, 0.f, 1.f);
-    sf::View view = window.getView();
     float targetAngle = newRotation.asDegrees();
-    float currentAngle = view.getRotation().asDegrees();
+    float currentAngle = cameraView.getRotation().asDegrees();
     float diff = std::fmod(targetAngle - currentAngle + 180.f, 360.f);
     if (diff < 0) diff += 360.f;
         diff -= 180.f;
@@ -440,6 +456,8 @@ void Game::updateRelativeVelocities(Vector2d newReferenceFrame) {
 
 void Game::draw(sf::RenderWindow& window) {
     window.clear();
+
+    window.setView(cameraView);
     drawBackground(window, dt);
     player.drawSmoke(window);
 
@@ -474,16 +492,20 @@ void Game::draw(sf::RenderWindow& window) {
         if (player.getState() != State::DEAD) {
             Vector2d thisReferenceVelocity = referenceVelocity;
             if (useParentAsReference && player.parentObject) thisReferenceVelocity = player.parentObject->velocity;
-            player.drawVelocity(window, thisReferenceVelocity, DEBUG_VELOCITY_SCALE);
+            //player.drawVelocity(window, thisReferenceVelocity, DEBUG_VELOCITY_SCALE);
             
         }
     }
 
+    window.setView(uiView);
+    
+    // Draw UI
+
+    window.setView(cameraView);
     window.display();
 }
 
 void Game::drawBackground(sf::RenderWindow& window, double dt) {
-    sf::View view = window.getView();
     if (!freecamEnabled) {
         bgOffset += timeScale*static_cast<sf::Vector2f>(globalVelocity*BACKGROUND_SCROLL_SPEED*dt)/zoomScale;
     }
@@ -495,7 +517,7 @@ void Game::drawBackground(sf::RenderWindow& window, double dt) {
     bgSprite.setTextureRect(sf::IntRect({offsetX, offsetY}, {2*windowX, 2*windowY}));
     
     bgSprite.setOrigin(sf::Vector2f(windowX, windowY));
-    bgSprite.setPosition(view.getCenter());
+    bgSprite.setPosition(cameraView.getCenter());
     bgSprite.setScale(sf::Vector2f(1.0, 1.0) * zoomScale);
     window.draw(bgSprite);
 }
@@ -506,23 +528,17 @@ void Game::drawBackground(sf::RenderWindow& window, double dt) {
 #pragma region Camera
 
 void Game::moveCamera(sf::Vector2f offset) {
-    sf::View view = window.getView();
-    view.move(offset);
-    window.setView(view);
+    cameraView.move(offset);
 }
 
 void Game::moveCamera(sf::Vector2f offset, Vector2f backGroundOffset) {
-    sf::View view = window.getView();
-    view.move(offset);
-    window.setView(view);
+    moveCamera(offset);
     bgOffset -= backGroundOffset;
 }
 
 void Game::rotateCamera(sf::Angle targetAngle) {
-    sf::View view = window.getView();
-    view.setRotation(targetAngle);
+    cameraView.setRotation(targetAngle);
     globalRotation = targetAngle;
-    window.setView(view);
 }
 
 void Game::zoomCamera(float zoomValue) {
@@ -530,9 +546,7 @@ void Game::zoomCamera(float zoomValue) {
         return;
     }
     zoomScale *= zoomValue;
-    sf::View view = window.getView();
-    view.zoom(zoomValue);
-    window.setView(view);
+    cameraView.zoom(zoomValue);
 }
 
 #pragma endregion

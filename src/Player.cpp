@@ -182,15 +182,15 @@ void pl::handleInput(InputManager& input, sf::RenderWindow& window, double dt) {
                 fly(flyDirection, dt);
             }
             if (input.inputStates[InputAction::RotateR].pressed || input.inputStates[InputAction::RotateL].pressed) {
-                sf::Angle rotationSpeed = (input.inputStates[InputAction::RotateR].pressed) ? ROTATION_SPEED : -ROTATION_SPEED;
-                rotate(rotationSpeed, dt);
+                //sf::Angle rotationSpeed = (input.inputStates[InputAction::RotateR].pressed) ? ROTATION_SPEED : -ROTATION_SPEED;
+                //rotate(rotationSpeed, dt);
             }
         }
     }
 }
 
 void pl::fly(Vector2d direction, double dt) {
-    Vector2d thrustVector = (direction.normalized()*THRUSTER_STRENGTH*dt);
+    Vector2d thrustVector = (direction.normalized()*THRUSTER_STRENGTH)*dt;
     velocity += thrustVector;
     double rotationDifference = (thrustVector.angle() - rotation).wrapSigned().asDegrees();
     rotation = sf::degrees(rotation.asDegrees() + std::lerp(0.0, rotationDifference, 0.2));

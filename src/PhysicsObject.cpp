@@ -118,6 +118,13 @@ void PhysObj::applyImpulse(Vector2d impulseVector) {
     velocityBuffer += impulseVector/mass;
 }
 
+
+Vector2d PhysObj::calculateGravityVector(Vector2d position1, double mass1, Vector2d position2, double mass2) {
+    Vector2d normal = (position2 - position1).normalized();
+    double distanceFactor = normal.lengthSquared();
+    return normal.normalized() * G*mass1*mass2/distanceFactor;
+}
+
 #pragma endregion
 
 // Protected Methods -------------------------------------------------------------------------------
@@ -181,7 +188,7 @@ Vector2d PhysObj::getCollisionImpulse(PhysObj& other, double sqrRestThreshold) {
         collisionImpulse = -(vNormal)/(1/mass + 1/other.mass) * normal; // Nullify soft collisions
     }
     double jNormal = collisionImpulse.dot(normal);
-    double totalSurfaceVelocity = (rotationalVelocity.asRadians()*radius) + other.rotationalVelocity.asRadians()*(other.radius);
+    double totalSurfaceVelocity = getSurfaceVelocity() + other.getSurfaceVelocity();
     relativeVelocity -= normal.rotatedBy(sf::degrees(-90)) * totalSurfaceVelocity;
     Vector2d vTangentVel = relativeVelocity - normal * relativeVelocity.dot(normal);
     double tangentSpeed = vTangentVel.length();
@@ -250,19 +257,13 @@ Vector2d PhysObj::getGravityVector(PhysObj& other, int distancePower) {
     return gravityVector;
 }
 
-Vector2d PhysObj::getGravityVector(Vector2d position1, double mass1, Vector2d position2, double mass2) {
-    Vector2d normal = (position2 - position1).normalized();
-    double distanceFactor = normal.lengthSquared();
-    return normal.normalized() * G*mass1*mass2/distanceFactor;
-}
-
 double PhysObj::getSurfaceVelocity() {
     return radius * rotationalVelocity.asRadians();
 }
 
 double PhysObj::getOrbitalPeriod(PhysObj& referenceObject) {
     double a = getSemiMajorAxis(referenceObject);
-    if (a < 0) return 0.0;
+    if (a <= 0.00001) return 0.0;
     double M = referenceObject.mass;
     return 2.0*PI*sqrt(pow(a, 3.0)/(G*M));
 }
@@ -275,53 +276,70 @@ double PhysObj::getSemiMajorAxis(PhysObj& referenceObject) {
     return semiMajorAxis;
 }
 
+double PhysObj::getEscapeVelocity(double distance) {
+    return sqrt((2*G*mass)/distance);
+}
+
+bool PhysObj::isOnEscapeTrajectory(PhysObj& other) {
+    bool isEscaping = false;
+    Vector2d rV = velocity - other.velocity;
+    if (rV.lengthSquared() == 0) return isEscaping;
+    Vector2d normal = (other.position - position);
+    Vector2d tangent = normal.rotatedBy(sf::degrees(90));
+    double tComponent = abs(rV.dot(tangent));
+    double nComponent = rV.dot(normal);
+    if (tComponent < nComponent && tComponent*nComponent > radius + other.radius) return isEscaping; // Colliision course
+    isEscaping = rV.lengthSquared() >= (pow(other.getEscapeVelocity(normal.length()), 2))*.95;
+    return isEscaping;
+}
+
 #pragma endregion
 
 // Drawing -----------------------------------------------------------------------------------------
 #pragma region Visualization
 
 std::vector<Vector2d> PhysicsObject::getOrbitalPath(double duration, int resolutionScale) {
+    if (parentObject) return getOrbitalPath(*parentObject, duration, resolutionScale);
+    return std::vector<Vector2d>{Vector2d(0,0), velocity*duration};
+}
+
+std::vector<Vector2d> PhysicsObject::getOrbitalPath(PhysObj& referenceObject, double duration, int resolutionScale) {
     int resolution = duration*resolutionScale;
     double timeDelta = 1.0/resolutionScale;
     Vector2d initialPosition = position;
     Vector2d initialVelocity = velocity;
     std::vector<Vector2d> orbitalPath;
-    if (parentObject) {
-        velocity -= parentObject->velocity;
-    }
-    
+
+    velocity -= referenceObject.velocity;
+    int numCollisions = 0;
     for (int i=0; i<resolution; i++) {  
-        if (parentObject) {
-            Vector2d gravityVector = getGravityVector(*parentObject)*timeDelta;
-            velocity += gravityVector;
-            if (checkCollision(*parentObject, timeDelta)) {
-                velocity += parentObject->velocity;
-                velocity += getCollisionImpulse(*parentObject)/mass - gravityVector;
-                velocity -= parentObject->velocity;
-            }
-        }      
+        Vector2d gravityVector = getGravityVector(referenceObject)*timeDelta;
+        velocity += gravityVector;
+        if (checkCollision(referenceObject, timeDelta)) {
+            velocity += referenceObject.velocity;
+            velocity += getCollisionImpulse(referenceObject)/mass - gravityVector;
+            velocity -= referenceObject.velocity;
+            numCollisions += 1;
+        }
 
         position += velocity*timeDelta;
         orbitalPath.push_back(position - initialPosition);
+        if (numCollisions > 10) break;
     }
     position = initialPosition;
     velocity = initialVelocity;
     return orbitalPath;
 }
 
-void PhysObj::drawOrbitalPath(sf::RenderWindow& window, int resolutionScale) {
-    if (!parentObject) return;
-    double period = getOrbitalPeriod(*parentObject) + 1;
-    if (period <= 0.0) {
-        period = 5.0; // Arbitrary path length for objects not in orbit
-    }
-    period = std::min(period, 1000.0);
-    resolutionScale = std::max(1, (int)(resolutionScale/(sqrt(period)/10.0)));
-    drawOrbitalPath(window, period, resolutionScale);
-}
-
 void PhysObj::drawOrbitalPath(sf::RenderWindow& window, double duration, int resolutionScale) {
-    std::vector<Vector2d> orbitalPath = getOrbitalPath(duration, resolutionScale);
+    std::vector<Vector2d> orbitalPath;
+    if (parentObject) {
+        if (isOnEscapeTrajectory(*parentObject) && parentObject->parentObject) {
+            orbitalPath = getOrbitalPath(*(parentObject->parentObject), duration, resolutionScale);
+        } else {
+            orbitalPath = getOrbitalPath(*parentObject, duration, resolutionScale);
+        }
+    }
     int pathStart = 0;
     int pathEnd = orbitalPath.size();
     int vertexCount = pathEnd - pathStart;
@@ -362,6 +380,24 @@ void PhysObj::drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity,
 
     window.draw(velocityLine);
 }
+
+
+void PhysObj::drawOrbitalPath(sf::RenderWindow& window, int resolutionScale) {
+    if (!parentObject) return;
+    double period = getOrbitalPeriod(*parentObject);
+    if (period <= 0.0 || isOnEscapeTrajectory(*parentObject)) {
+        if (parentObject->parentObject) {
+            period = getOrbitalPeriod(*(parentObject->parentObject));
+        } else {
+            period = 5.0; // Arbitrary path length for objects not in orbit
+        }
+    }
+    
+    //resolutionScale = std::max(1, (int)(resolutionScale/(sqrt(period)/10.0)));
+    resolutionScale = std::max(1, (int)(60*resolutionScale/period));
+    drawOrbitalPath(window, period + 1, resolutionScale);
+}
+
 
 #pragma endregion
 

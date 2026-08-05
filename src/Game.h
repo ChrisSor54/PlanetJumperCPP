@@ -10,13 +10,16 @@
 
 const float CAMERA_SPEED = 200.0;
 const float CAMERA_LERP_SPEED = 10.0;
+const float CAMERA_ROTATE_SPEED = 10.0;
 const int COLLISION_RESOLUTION = 8;
-const float MIN_ZOOM_SCALE = 0.125;
+const double ZOOM_SPEED = 1.5;
+const float MIN_ZOOM_SCALE = 1/(3*ZOOM_SPEED);
 const double BACKGROUND_SCROLL_SPEED = 0.01;
 
 const bool DEBUG_VELOCITY_SCALE = 1.0;
 const double VISUAL_ORBIT_DURATION = 10;
-const int VISUAL_ORBIT_RESOLUTION_SCALE = 30; 
+const int VISUAL_ORBIT_RESOLUTION_SCALE = 30;
+
 
 
 class Game {
@@ -98,9 +101,14 @@ class Game {
         bool freecamEnabled = false;
         bool copyRotation = true;
 
+        sf::View cameraView;
+        sf::View uiView;
+
         sf::Vector2f bgSize;
         sf::Texture bgTexture;
         sf::Sprite bgSprite;
+
+        sf::Texture fontSpritesheet;
 
         // Debug flags
         bool drawVelocities = false;
@@ -111,8 +119,6 @@ class Game {
         void updateInputStates();
         void handleInput(double dt);
         void update(double dt);
-        void draw(sf::RenderWindow& window);
-        void drawBackground(sf::RenderWindow& window, double dt);
 
         // Updates
         void updateRelativeVelocities(Vector2d newReferenceFrame);
@@ -128,4 +134,10 @@ class Game {
         void moveCamera(sf::Vector2f offset, Vector2f backGroundOffset);
         void zoomCamera(float zoomValue);
         void rotateCamera(sf::Angle targetAngle);
+
+        // Drawing
+        void draw(sf::RenderWindow& window);
+        void drawBackground(sf::RenderWindow& window, double dt);
+        void drawUI(sf::RenderWindow& window);
+        void drawText(sf::String string, Vector2f position);
 };

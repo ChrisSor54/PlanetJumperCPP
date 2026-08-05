@@ -6,6 +6,9 @@ const float GROUNDED_MARGIN = 0.1;
 const double COLLISION_REST_COEFFICIENT = 2.0*0.16;
 const float ELASTICITY = 0.6;
 
+const double MAX_VISIBLE_PERIOD = 500.f;
+
+
 
 enum class MatterState {
     SOLID,
@@ -47,6 +50,8 @@ class PhysicsObject {
         void applyImpulse(Vector2d impulseVector);
         double getSurfaceDistance(PhysicsObject& other);
 
+        static Vector2d calculateGravityVector(Vector2d position1, double mass1, Vector2d position2, double mass2);
+
 
 
         virtual void draw(sf::RenderWindow& window) = 0;
@@ -68,11 +73,13 @@ class PhysicsObject {
         Vector2d getCollisionImpulse(PhysicsObject& other, double sqrRestThreshold);
         Vector2d getGravityVector(PhysicsObject& other);
         Vector2d getGravityVector(PhysicsObject& other, int distancePower);
-        Vector2d getGravityVector(Vector2d position1, double mass1, Vector2d position2, double mass2);
+        bool isOnEscapeTrajectory(PhysicsObject& other);
+        double getEscapeVelocity(double distance);
         double getSurfaceVelocity();
         double getOrbitalPeriod(PhysicsObject& referenceObject);
         double getSemiMajorAxis(PhysicsObject& referenceObject); 
         std::vector<Vector2d> getOrbitalPath(double duration, int resolutionScale);
+        std::vector<Vector2d> getOrbitalPath(PhysicsObject& referenceObject, double duration, int resolutionScale);
 };
 
 

@@ -37,7 +37,7 @@ BodyTexture gasGiantTexture = {
 #pragma region Main
 
 int main() {
-    Game game(800, 600);
+    Game game(1600, 1200);
 
     // Star A
     Body* starA = game.addBody(
@@ -181,7 +181,7 @@ int main() {
 
 
 
-    game.teleportPlayerTo(planetE);
+    game.teleportPlayerTo(planetA);
 
     game.run();
     
