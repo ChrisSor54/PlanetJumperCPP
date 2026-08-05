@@ -289,7 +289,7 @@ bool PhysObj::isOnEscapeTrajectory(PhysObj& other) {
     double tComponent = abs(rV.dot(tangent));
     double nComponent = rV.dot(normal);
     if (tComponent < nComponent && tComponent*nComponent > radius + other.radius) return isEscaping; // Colliision course
-    isEscaping = rV.lengthSquared() >= (pow(other.getEscapeVelocity(normal.length()), 2))*.95;
+    isEscaping = rV.lengthSquared() >= (pow(other.getEscapeVelocity(normal.length()), 2))*.90;
     return isEscaping;
 }
 
@@ -304,8 +304,8 @@ std::vector<Vector2d> PhysicsObject::getOrbitalPath(double duration, int resolut
 }
 
 std::vector<Vector2d> PhysicsObject::getOrbitalPath(PhysObj& referenceObject, double duration, int resolutionScale) {
-    int resolution = duration*resolutionScale;
-    double timeDelta = 1.0/resolutionScale;
+    int resolution = resolutionScale;
+    double timeDelta = duration/resolutionScale;
     Vector2d initialPosition = position;
     Vector2d initialVelocity = velocity;
     std::vector<Vector2d> orbitalPath;
@@ -323,6 +323,7 @@ std::vector<Vector2d> PhysicsObject::getOrbitalPath(PhysObj& referenceObject, do
         }
 
         position += velocity*timeDelta;
+        //if ((position - initialPosition).lengthSquared() < velocity.lengthSquared()*timeDelta) break;
         orbitalPath.push_back(position - initialPosition);
         if (numCollisions > 10) break;
     }
@@ -341,7 +342,7 @@ void PhysObj::drawOrbitalPath(sf::RenderWindow& window, double duration, int res
         }
     }
     int pathStart = 0;
-    int pathEnd = orbitalPath.size();
+    int pathEnd = orbitalPath.size() + 1;
     int vertexCount = pathEnd - pathStart;
     bool isFullOrbit = false;
     if (orbitalPath[pathEnd-1].length() < radius) {
@@ -354,12 +355,14 @@ void PhysObj::drawOrbitalPath(sf::RenderWindow& window, double duration, int res
 
     sf::Color lineColor = sf::Color(150,150,255);
 
-    for (int i=pathStart; i<pathEnd; i++) {
-        pathLine[i - pathStart].position = static_cast<sf::Vector2f>(position + orbitalPath[i] + center);
+    pathLine[0].position = static_cast<sf::Vector2f>(position + center);
+    pathLine[0].color = lineColor;
+    for (int i=pathStart+1; i<pathEnd; i++) {
+        pathLine[i - pathStart].position = static_cast<sf::Vector2f>(position + orbitalPath[i-1] + center);
         pathLine[i - pathStart].color = lineColor;
     }
     if (isFullOrbit) {
-        pathLine[vertexCount-1].position = static_cast<sf::Vector2f>(position + orbitalPath[pathStart] + center);
+        pathLine[vertexCount-1].position = static_cast<sf::Vector2f>(position + center);
         pathLine[vertexCount-1].color = lineColor;
     }
 
@@ -394,8 +397,8 @@ void PhysObj::drawOrbitalPath(sf::RenderWindow& window, int resolutionScale) {
     }
     
     //resolutionScale = std::max(1, (int)(resolutionScale/(sqrt(period)/10.0)));
-    resolutionScale = std::max(1, (int)(60*resolutionScale/period));
-    drawOrbitalPath(window, period + 1, resolutionScale);
+    //resolutionScale = std::max(1, (int)(60*resolutionScale/period));
+    drawOrbitalPath(window, period + 1, 300);
 }
 
 
