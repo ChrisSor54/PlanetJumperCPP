@@ -10,6 +10,8 @@ struct Camera {
     sf::View view;
     Vector2d position = Vector2d(0,0);
     Vector2d velocity = Vector2d(0,0);
+    Vector2f bgOffset = Vector2f(0,0);
+    float zoomScale = 1.0;
 };
 
 
@@ -18,16 +20,16 @@ struct Camera {
 // CONSTANTS
 
 const float CAMERA_SPEED = 200.0;
-const float CAMERA_LERP_SPEED = 10.0;
+const float CAMERA_LERP_SPEED = 1.0;
 const float CAMERA_ROTATE_SPEED = 10.0;
 const int COLLISION_RESOLUTION = 8;
 const double ZOOM_SPEED = 1.5;
 const float MIN_ZOOM_SCALE = 1/(3*ZOOM_SPEED);
-const double BACKGROUND_SCROLL_SPEED = 0.01;
+const double BACKGROUND_SCROLL_SPEED = 0.1;
 
 const bool DEBUG_VELOCITY_SCALE = 1.0;
 const double VISUAL_ORBIT_DURATION = 10;
-const int VISUAL_ORBIT_RESOLUTION_SCALE = 30;
+const int VISUAL_ORBIT_RESOLUTION_SCALE = 600;
 
 
 
@@ -103,7 +105,6 @@ class Game {
         Vector2d globalOrigin = Vector2d(0, 0);
         Vector2d globalVelocity = Vector2d(0, 0);
         sf::Angle globalRotation = sf::Angle::Zero;
-        sf::Vector2f bgOffset = sf::Vector2f(0,0);
         float zoomScale = 1.0;
         float timeScale = 1.0;
         float dt;
@@ -155,7 +156,7 @@ class Game {
 
         // Drawing
         void draw(sf::RenderWindow& window);
-        void drawBackground(sf::RenderWindow& window, double dt);
+        void drawBackground(int cameraID, sf::RenderWindow& window, double dt);
         void drawUI(sf::RenderWindow& window);
         void drawText(sf::String string, Vector2f position);
 };

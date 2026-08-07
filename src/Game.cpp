@@ -52,6 +52,15 @@ void Game::run() {
         }
     }
 
+    int cols = (playerCount >= 2) ? 2 : 1;
+    int rows = (playerCount > 2) ? 2 : 1;
+    sf::Vector2u windowSize = window.getSize();
+    sf::Vector2f viewSize(windowSize.x/cols, windowSize.y/rows);
+    for (int i=0; i<playerCount;i++) {
+        cameras[i].view.setSize(viewSize);
+        uiViews[i].setSize(viewSize);
+    }
+
     while (window.isOpen()) {
         dt = clock.restart().asSeconds(); // get deltatime
         dt = std::min(dt, 0.3f);
@@ -254,6 +263,7 @@ void Game::updateInputStates() {
             for (int i=0; i<playerCount;i++) {
                 cameras[i].view.setSize(viewSize);
                 uiViews[i].setSize(viewSize);
+                cameras[i].view.zoom(cameras[i].zoomScale);
             }
         }
 
@@ -310,9 +320,9 @@ void Game::updateInputStates() {
 void Game::handleInput(double dt) {
     if (!inputPressed(IA::DEBUG)) {
         if (inputReleased(IA::ZoomIn)) {
-            zoomCamera(0, ZOOM_SPEED);
+            for (int i=0; i<cameras.size();i++) zoomCamera(i, ZOOM_SPEED);
         } else if (inputReleased(IA::ZoomOut)) {
-            zoomCamera(0, 1/ZOOM_SPEED);
+            for (int i=0; i<cameras.size();i++) zoomCamera(i, 1/ZOOM_SPEED);
         }
         if (inputReleased(IA::SpeedUp)) {
             timeScale *= 2.0;
@@ -475,28 +485,33 @@ void Game::update(double dt) {
         for (auto& player : players) {
             player->updateSmoke(delta);  
         }
-        for (int i=0; i<cameras.size(); i++) {
-            centerCamera(i, 0.11);
-            cameras[i].view.setCenter(static_cast<Vector2f>(cameras[i].position));
-        }
         //std::cout << std::to_string((player.velocity - player.parentObject->velocity).length()) << std::endl;
-        bool offsetRelative = false;
+        Vector2d relativeOrigin(0,0);
+        Vector2d relativeVelocityOrigin(0,0);
+        int alivePlayerCount = 0;
         for (auto& player : players) {
             if (player->getState() != State::DEAD) {
-                if (!offsetRelative) {
-                    updateRelativePositions(player->position);
-                    updateRelativeVelocities(player->velocity);
-                    offsetRelative = true;
-                }
-                if (player->getState() == State::GROUNDED && copyRotation && !freecamEnabled) {
-                    updateRelativeRotations(player->id, player->rotation);
-                } else if (freecamEnabled) {
-                    if (freecamEnabled) {
-                        moveCamera(player->id, globalVelocity*dt);
-                    }
-                }
+                relativeOrigin += player->position;
+                relativeVelocityOrigin += player->velocity;
+                alivePlayerCount += 1;
             }
+                // if (player->getState() == State::GROUNDED && copyRotation && !freecamEnabled) {
+                //     updateRelativeRotations(player->id, player->rotation);
+                // } else if (freecamEnabled) {
+                //     if (freecamEnabled) {
+                //         moveCamera(player->id, globalVelocity*dt);
+                //     }
+                // }
         }
+        relativeOrigin /= (double)alivePlayerCount;
+        relativeVelocityOrigin /= (double)alivePlayerCount;
+        updateRelativePositions(relativeOrigin);
+        updateRelativeVelocities(relativeVelocityOrigin);
+    }
+    for (auto& player : players) {
+        Camera& camera = cameras[player->id];
+        centerCamera(player->id);
+        // Vector2d relVel = camera.velocity - player->velocity;
     }
     if (drawVelocities) {
         for (auto& obj : objects) {
@@ -512,9 +527,6 @@ void Game::updateRelativePositions(Vector2d newOrigin) {
     for (auto& obj : objects) {
         obj->position -= newOrigin;
     }
-    for (auto& camera : cameras) {
-        camera.position -= newOrigin;
-    }
     for (auto& player : players) {
         player->position -= newOrigin;
         
@@ -522,6 +534,9 @@ void Game::updateRelativePositions(Vector2d newOrigin) {
             if (particle.lifespan <= 0) continue;
             particle.pos -= (sf::Vector2f) newOrigin;
         }
+    }
+    for (auto& camera : cameras) {
+        camera.position -= newOrigin;
     }
     globalOrigin -= newOrigin;
 }
@@ -540,7 +555,9 @@ void Game::updateRelativeVelocities(Vector2d newReferenceFrame) {
             if (particle.lifespan <= 0) continue;
             particle.vel -= (sf::Vector2f) newReferenceFrame;
         }
-        cameras[player->id].velocity -= newReferenceFrame;
+    }
+    for (auto& camera : cameras) {
+        camera.velocity -= newReferenceFrame;
     }
     globalVelocity -= newReferenceFrame;
 }
@@ -555,7 +572,7 @@ void Game::draw(sf::RenderWindow& window) {
     window.clear();
     for (int i=0; i<cameras.size(); i++) {
         window.setView(cameras[i].view);
-        //drawBackground(window, dt);
+        drawBackground(i, window, dt);
         //cameraViews[player->id].setCenter(static_cast<Vector2f>(player->position));
         for (auto& player : players) {
             player->drawSmoke(window);
@@ -589,23 +606,22 @@ void Game::draw(sf::RenderWindow& window) {
     window.display();
 }
 
-void Game::drawBackground(sf::RenderWindow& window, double dt) {
-    for (auto& player : players) {
-        if (!freecamEnabled) {
-            bgOffset = timeScale*static_cast<sf::Vector2f>((globalOrigin-player->position)*BACKGROUND_SCROLL_SPEED)/zoomScale;
-        }
-        int windowX = static_cast<int>(cameras[player->id].view.getSize().x);
-        int windowY = static_cast<int>(cameras[player->id].view.getSize().y);
-        int windowM = std::max(windowX, windowY);
-        int offsetX = -bgOffset.x;
-        int offsetY = -bgOffset.y;
-        bgSprite.setTextureRect(sf::IntRect({offsetX, offsetY}, {2*windowX, 2*windowY}));
-        
-        bgSprite.setOrigin(sf::Vector2f(windowX, windowY));
-        bgSprite.setPosition(static_cast<sf::Vector2f>(cameras[player->id].position));
-        bgSprite.setScale(sf::Vector2f(1.0, 1.0) * zoomScale);
-        window.draw(bgSprite);
-    }
+void Game::drawBackground(int cameraID, sf::RenderWindow& window, double dt) {
+    Camera& camera = cameras[cameraID];
+    camera.bgOffset += timeScale*static_cast<sf::Vector2f>((players[cameraID]->velocity - globalVelocity)*BACKGROUND_SCROLL_SPEED*dt)/camera.zoomScale;
+    sf::Vector2u winSize = window.getSize();
+    sf::FloatRect viewport = camera.view.getViewport();
+    int windowX = 2*static_cast<int>(viewport.size.x * winSize.x);
+    int windowY = 2*static_cast<int>(viewport.size.y * winSize.y);
+    int windowM = std::max(windowX, windowY);
+    int offsetX = camera.bgOffset.x;
+    int offsetY = camera.bgOffset.y;
+    bgSprite.setTextureRect(sf::IntRect({offsetX, offsetY}, {windowX, windowY}));
+    
+    bgSprite.setOrigin(sf::Vector2f(windowX/2, windowY/2));
+    bgSprite.setPosition(static_cast<sf::Vector2f>(camera.position));
+    bgSprite.setScale(sf::Vector2f(1.0, 1.0)*camera.zoomScale);
+    window.draw(bgSprite);
 }
 
 #pragma endregion
@@ -619,26 +635,40 @@ void Game::moveCamera(int cameraID, Vector2d offset) {
 
 void Game::moveCamera(int cameraID, Vector2d offset, Vector2f backGroundOffset) {
     moveCamera(cameraID, offset);
-    bgOffset -= backGroundOffset;
+    cameras[cameraID].bgOffset -= backGroundOffset;
 }
 
 void Game::centerCamera(int playerID) {
     cameras[playerID].position = players[playerID]->position;
+    cameras[playerID].view.setCenter((Vector2f)cameras[playerID].position);
     if (players[playerID]->getState() == State::GROUNDED) {
-        rotateCamera(playerID, players[playerID]->rotation);
+        rotateCamera(playerID, players[playerID]->rotation, CAMERA_ROTATE_SPEED);
     }
 }
 
 void Game::centerCamera(int playerID, float lerpScale) {
-    float t = lerpScale*dt*zoomScale;
+    float t = lerpScale*dt*timeScale;
     t = std::clamp(t, 0.f, 1.f);
-    Vector2f playerPosition = static_cast<Vector2f>(players[playerID]->position);
-    Vector2f cameraPosition = static_cast<Vector2f>(cameras[playerID].position);
+    Vector2d playerVelocity = players[playerID]->velocity - globalVelocity;
+    Vector2d cameraVelocity = cameras[playerID].velocity - globalVelocity;
+    Vector2f relativeVelocity = static_cast<Vector2f>(cameraVelocity - playerVelocity);
     //Vector2d relativePosition = playerPosition - cameraPosition;
-    float lerpX = std::lerp(cameraPosition.x, playerPosition.x, t);
-    float lerpY = std::lerp(cameraPosition.y, playerPosition.y, t);
-    Vector2d lerpOffset(lerpX, lerpY);
-    cameras[playerID].position = lerpOffset;
+    float lerpX = std::lerp((float)cameraVelocity.x, (float)playerVelocity.x, t);
+    float lerpY = std::lerp((float)cameraVelocity.y, (float)playerVelocity.y, t);
+    Vector2d velocityLerpOffset(lerpX, lerpY);
+    cameras[playerID].velocity = velocityLerpOffset;
+    // Vector2f playerPosition = static_cast<Vector2f>(players[playerID]->position - globalOrigin);
+    // Vector2f cameraPosition = static_cast<Vector2f>(cameras[playerID].position - globalOrigin);
+    // //Vector2d relativePosition = playerPosition - cameraPosition;
+    // lerpX = std::lerp(cameraPosition.x, playerPosition.x, t);
+    // lerpY = std::lerp(cameraPosition.y, playerPosition.y, t);
+    // Vector2d positionLerpOffset(lerpX, lerpY);
+    cameras[playerID].position = players[playerID]->position - (cameras[playerID].velocity*(double)dt);
+    playerVelocity = players[playerID]->velocity - globalVelocity;
+    cameraVelocity = cameras[playerID].velocity - globalVelocity;
+    relativeVelocity = static_cast<Vector2f>(cameraVelocity - playerVelocity);
+    std::cout << playerID << ": " << relativeVelocity.x <<  ", " << relativeVelocity.y << std::endl;
+    cameras[playerID].view.setCenter((Vector2f)cameras[playerID].position);
     if (players[playerID]->getState() == State::GROUNDED) {
         rotateCamera(playerID, players[playerID]->rotation, CAMERA_ROTATE_SPEED);
     }
@@ -660,10 +690,10 @@ void Game::rotateCamera(int cameraID, sf::Angle targetAngle, float lerpScale) {
 }
 
 void Game::zoomCamera(int cameraID, float zoomValue) {
-    if (zoomScale*zoomValue < MIN_ZOOM_SCALE) {
+    if (cameras[cameraID].zoomScale*zoomValue < MIN_ZOOM_SCALE) {
         return;
     }
-    zoomScale *= zoomValue;
+    cameras[cameraID].zoomScale *= zoomValue;
     cameras[cameraID].view.zoom(zoomValue);
 }
 

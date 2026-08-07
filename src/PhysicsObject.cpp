@@ -323,20 +323,17 @@ void PhysicsObject::updateOrbitalPath(PhysObj& referenceObject, double duration,
     Vector2d initialVelocity = velocity;
     orbitalPath.clear();
 
-    velocity -= referenceObject.velocity;
     int numCollisions = 0;
     for (int i=0; i<resolution; i++) {  
         Vector2d gravityVector = getGravityVector(referenceObject)*timeDelta;
         velocity += gravityVector;
         if (checkCollision(referenceObject, timeDelta)) {
-            velocity += referenceObject.velocity;
             velocity += getCollisionImpulse(referenceObject)/mass - gravityVector;
-            velocity -= referenceObject.velocity;
             numCollisions += 1;
         }
 
-        position += velocity*timeDelta;
-        Vector2d positionOffset = (position - initialPosition); 
+        position += (velocity - referenceObject.velocity)*timeDelta;
+        Vector2d positionOffset = position - initialPosition; 
         //if (positionOffset.lengthSquared() < velocity.lengthSquared()*timeDelta) break;
         orbitalPath.push_back(positionOffset);
         if (numCollisions > 3) break;
