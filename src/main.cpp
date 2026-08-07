@@ -39,6 +39,9 @@ BodyTexture gasGiantTexture = {
 int main() {
     Game game(1600, 1200);
 
+    Player* player1 = game.addPlayer(sf::Color(255, 255, 255));
+    Player* player2 = game.addPlayer(sf::Color(255, 0, 0));
+
     // Star A
     Body* starA = game.addBody(
         Vector2d(0.f, 0.f), // Position
@@ -60,7 +63,7 @@ int main() {
         false, // CounterClockwise orbit
         10*pow(10, 7), // Mass
         450, // Radius
-        sf::radians(0.1),
+        sf::radians(0.0),
         0.6, // Surface Friction
         MatterState::SOLID, // State
         sf::Color(168, 168, 162), // Color
@@ -181,7 +184,8 @@ int main() {
 
 
 
-    game.teleportPlayerTo(planetA);
+    game.teleportPlayerTo(0, planetA);
+    game.teleportPlayerTo(1, moonA1);
 
     game.run();
     

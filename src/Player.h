@@ -70,13 +70,13 @@ class Player : public PhysObj {
         std::array<SmokeParticle, MAX_SMOKE> smokeArray;
         
         // Methods
-        Player();
+        Player(sf::Color playerColor);
 
         State getState();
         void updateGravity(PhysObj& other, double dt);
         void updateCollision(PhysicsObject& other, double dt);
         void setState(State newState);
-        void handleInput(InputManager& input, sf::RenderWindow& window, double dt);
+        void handleInput(InputMap& input, double dt);
         void update(double dt);
         void updateSmoke(double dt);
         void draw(sf::RenderWindow& window) override;
@@ -136,5 +136,9 @@ class Player : public PhysObj {
         Vector2d getCollisionImpulse(PhysicsObject& other);
         Vector2d getCollisionImpulse(PhysicsObject& other, double sqrRestThreshold);
         void updateAnimation(float dt);
+
+        static sf::Texture spriteSheet;
+        static sf::Texture spriteMask;
+        static bool spriteSheetLoaded;
 
 };

@@ -5,6 +5,15 @@
 #include "Player.h"
 
 
+
+struct Camera {
+    sf::View view;
+    Vector2d position = Vector2d(0,0);
+    Vector2d velocity = Vector2d(0,0);
+};
+
+
+
 //--------------------------------------------------------------------------------------------------
 // CONSTANTS
 
@@ -30,6 +39,8 @@ class Game {
         // Methods
         Game(unsigned int window_w, unsigned int window_h);
         void run();
+
+        Player* addPlayer(sf::Color color);
 
         Body* addBody(
             Vector2d position,
@@ -83,7 +94,7 @@ class Game {
             BodyTexture satTexture
         );
 
-        void teleportPlayerTo(PhysicsObject* target);
+        void teleportPlayerTo(int playerID, PhysicsObject* target);
         
     private:
         // Members
@@ -95,14 +106,16 @@ class Game {
         sf::Vector2f bgOffset = sf::Vector2f(0,0);
         float zoomScale = 1.0;
         float timeScale = 1.0;
-        Player player;
         float dt;
+
+        std::vector<std::unique_ptr<Player>> players;
+        unsigned int playerCount = 0;
 
         bool freecamEnabled = false;
         bool copyRotation = true;
 
-        sf::View cameraView;
-        sf::View uiView;
+        std::vector<Camera> cameras;
+        std::vector<sf::View> uiViews;
 
         sf::Vector2f bgSize;
         sf::Texture bgTexture;
@@ -113,27 +126,32 @@ class Game {
         // Debug flags
         bool drawVelocities = false;
         bool useParentAsReference = true;
-        bool enlargePlanets = false;
 
         // Methods
         void updateInputStates();
         void handleInput(double dt);
+        bool inputPressed(InputAction input);
+        bool inputPressed(int playerID, InputAction input);
+        bool inputReleased(InputAction input);
+        bool inputReleased(int playerID, InputAction input);
         void update(double dt);
 
         // Updates
         void updateRelativeVelocities(Vector2d newReferenceFrame);
         void updateRelativePositions(Vector2d newOrigin);
-        void updateRelativePositions(Vector2d newOrigin, float lerpScale);
-        void updateRelativeRotations(sf::Angle newRotation, float lerpScale);
-
+        void updateRelativeRotations(int cameraID, sf::Angle newRotation);
+        void updateCameras(double dt);
         
-        void drawVisualeOrbits(double duration, int resolution);
+        void drawVisualOrbits(double duration, int resolution);
 
         // Camera
-        void moveCamera(sf::Vector2f offset);
-        void moveCamera(sf::Vector2f offset, Vector2f backGroundOffset);
-        void zoomCamera(float zoomValue);
-        void rotateCamera(sf::Angle targetAngle);
+        void centerCamera(int playerID);
+        void centerCamera(int playerID, float lerpScale);
+        void moveCamera(int cameraID, Vector2d offset);
+        void moveCamera(int cameraID, Vector2d offset, Vector2f backGroundOffset);
+        void zoomCamera(int cameraID, float zoomValue);
+        void rotateCamera(int cameraID, sf::Angle targetAngle);
+        void rotateCamera(int cameraID, sf::Angle targetAngle, float lerpScale);
 
         // Drawing
         void draw(sf::RenderWindow& window);

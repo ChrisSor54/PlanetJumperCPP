@@ -57,12 +57,15 @@ class PhysicsObject {
         virtual void draw(sf::RenderWindow& window) = 0;
         virtual void draw(sf::RenderWindow& window, Vector2f scale) = 0;
         virtual void drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale);
-        void drawOrbitalPath(sf::RenderWindow& window, int resolutionScale);
-        void drawOrbitalPath(sf::RenderWindow& window, double duration, int resolutionScale);
+        void updateOrbitalPath(int resolutionScale);
+        void updateOrbitalPath(double duration, int resolutionScale);
+        void updateOrbitalPath(PhysicsObject& referenceObject, double duration, int resolutionScale);
+        void drawOrbitalPath(sf::RenderWindow& window);
         virtual ~PhysicsObject() {};
 
     protected:
         Vector2d velocityBuffer;
+        std::vector<Vector2d> orbitalPath;
                
 
         // void updateVirtualForces(PhysicsObject& other, double dt);
@@ -78,8 +81,6 @@ class PhysicsObject {
         double getSurfaceVelocity();
         double getOrbitalPeriod(PhysicsObject& referenceObject);
         double getSemiMajorAxis(PhysicsObject& referenceObject); 
-        std::vector<Vector2d> getOrbitalPath(double duration, int resolutionScale);
-        std::vector<Vector2d> getOrbitalPath(PhysicsObject& referenceObject, double duration, int resolutionScale);
 };
 
 

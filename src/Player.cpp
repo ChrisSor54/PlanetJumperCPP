@@ -2,30 +2,34 @@
 
 using pl = Player;
 
+sf::Texture pl::spriteSheet;
+sf::Texture pl::spriteMask;
+bool pl::spriteSheetLoaded = false;
 
-pl::Player() 
+pl::Player(sf::Color playerColor) 
     : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, sf::degrees(0), PLAYER_FRICTION, MatterState::SOLID), sprite(sf::Sprite(spriteTexture.getTexture())) {
     elasticity = PLAYER_ELASTICITY;
 
-    sf::Color playerColor(250, 250, 250);
-
+    position += Vector2d(id*2*COLLISION_RADIUS, 0);
     // Initialize textures and sprite
-    sf::Texture baseTexture, maskTexture;
-    if (!baseTexture.loadFromFile("assets/astronaut.png")) {
-        throw std::invalid_argument("Bad player texture");
+    if (!spriteSheetLoaded) {
+        if (!spriteSheet.loadFromFile("assets/astronaut.png")) {
+            throw std::invalid_argument("Bad player texture");
+        }
+        
+        if (!spriteMask.loadFromFile("assets/astronaut_body_mask.png")) {
+            throw std::invalid_argument("Bad player mask");
+        }
+        pl::spriteSheetLoaded = true;
     }
-    
-    if (!maskTexture.loadFromFile("assets/astronaut_body_mask.png")) {
-        throw std::invalid_argument("Bad player mask");
-    }
-    spriteTexture = sf::RenderTexture(baseTexture.getSize());
+    spriteTexture = sf::RenderTexture(spriteSheet.getSize());
     spriteTexture.clear(sf::Color::Transparent);
 
-    sprite.setTexture(baseTexture, true);
+    sprite.setTexture(spriteSheet, true);
     sprite.setColor(sf::Color::White);
     spriteTexture.draw(sprite);
 
-    sprite.setTexture(maskTexture, true);
+    sprite.setTexture(spriteMask, true);
     sprite.setColor(playerColor);
     spriteTexture.draw(sprite);
     spriteTexture.display();
@@ -34,6 +38,7 @@ pl::Player()
     sprite.setTexture(spriteTexture.getTexture(), true);
     sprite.setOrigin(sf::Vector2f(SPRITE_WIDTH/2.f, SPRITE_WIDTH/2.f));
 
+    sprite.setPosition(Vector2f(0,0));
     setState(State::FLYING);
     playAnimation(Anim::FLYING);
 }
@@ -134,10 +139,11 @@ Vector2d pl::getCollisionImpulse(PhysObj& other, double sqrRestThreshold) {
 // Input & Actions ---------------------------------------------------------------------------------
 #pragma region Input & Actions
 
-void pl::handleInput(InputManager& input, sf::RenderWindow& window, double dt) {
+void pl::handleInput(InputMap& input, double dt) {
     Vector2d dirInput = static_cast<Vector2d>(input.directionalInput);
-    if (dirInput.x != 0)  {
-        flipSprite = dirInput.x < 0;
+    int xInput = input.inputStates[InputAction::Right].pressed - input.inputStates[InputAction::Left].pressed;
+    if (xInput != 0)  {
+        flipSprite = xInput < 0;
     }
     if (state == State::GROUNDED && parentObject) {
         if (input.inputStates[InputAction::Jump].pressed) {
@@ -155,7 +161,7 @@ void pl::handleInput(InputManager& input, sf::RenderWindow& window, double dt) {
                 moveSpeed /= 2.5;
                 maxMoveSpeed /= 2.5;
             }
-            Vector2d movementVector = tangent.normalized() * dirInput.x * moveSpeed;
+            Vector2d movementVector = tangent * dirInput.dot(tangent) * moveSpeed;
             Vector2d rvTangent = tangent * relVelocity.dot(tangent);
             if (dirInput.x != 0) {
                 if ((rvTangent + movementVector).length() > maxMoveSpeed) {
@@ -177,14 +183,12 @@ void pl::handleInput(InputManager& input, sf::RenderWindow& window, double dt) {
             }
         } else {
             if (dirInput.lengthSquared() > 0) { // Flying
-                sf::Angle viewRotation = window.getView().getRotation();
-                Vector2d flyDirection = dirInput.rotatedBy(viewRotation);
-                fly(flyDirection, dt);
+                fly(dirInput, dt);
             }
-            if (input.inputStates[InputAction::RotateR].pressed || input.inputStates[InputAction::RotateL].pressed) {
-                //sf::Angle rotationSpeed = (input.inputStates[InputAction::RotateR].pressed) ? ROTATION_SPEED : -ROTATION_SPEED;
-                //rotate(rotationSpeed, dt);
-            }
+            // if (input.inputStates[InputAction::RotateR].pressed || input.inputStates[InputAction::RotateL].pressed) {
+            //     //sf::Angle rotationSpeed = (input.inputStates[InputAction::RotateR].pressed) ? ROTATION_SPEED : -ROTATION_SPEED;
+            //     //rotate(rotationSpeed, dt);
+            // }
         }
     }
 }
@@ -306,14 +310,14 @@ void pl::updateAnimation(float dt) {
 }
 
 void pl::draw(sf::RenderWindow& window) {
-    sf::Vector2f center = static_cast<sf::Vector2f>(window.getSize())/2.f;
+    // sf::Vector2f center = static_cast<sf::Vector2f>(window.getSize())/2.f;
     int flip = (flipSprite) ? -1.f : 1.f;
     if (jumpCharge == 0) {
         sprite.setOrigin(SPRITE_ORIGIN);
         sprite.setColor(sf::Color(255,255,255));
     }
     sprite.setScale(sf::Vector2f(flip, 1.f));
-    sprite.setPosition(static_cast<sf::Vector2f>(position) + center);
+    sprite.setPosition(static_cast<Vector2f>(position));
     sprite.setRotation(rotation.wrapUnsigned() + sf::degrees(90.f));
     window.draw(sprite);
 }
@@ -353,7 +357,6 @@ void pl::updateSmoke(double dt) {
 void pl::drawSmoke(sf::RenderWindow& window) {
     sf::CircleShape smokeShape;
     smokeShape.setPointCount(10);
-    sf::Vector2f center = static_cast<sf::Vector2f>(window.getSize())/2.f;
     float size = SMOKE_RADIUS;
     smokeShape.setRadius(size);
     
@@ -366,8 +369,7 @@ void pl::drawSmoke(sf::RenderWindow& window) {
         alpha = std::min(alpha, 255.f);
         sf::Color color(255, 255, 255, static_cast<int>(alpha));
         smokeShape.setFillColor(color);
-        sf::Vector2f scaledPosition = static_cast<sf::Vector2f>(particle.pos);
-        smokeShape.setPosition(scaledPosition + center);
+        smokeShape.setPosition(static_cast<sf::Vector2f>(particle.pos));
         window.draw(smokeShape);
     }
 }

@@ -10,14 +10,6 @@
 Game::Game(unsigned int window_w, unsigned int window_h) 
     : bgSprite(bgTexture) {
     window.create(sf::VideoMode({window_w, window_h}), "Planet Jumper");
-    
-    Vector2f viewSize((float)window_w, (float)window_h);
-    cameraView.setSize(viewSize);
-    uiView.setSize(viewSize);
-    cameraView.setCenter(viewSize/2.f);
-    uiView.setCenter(viewSize/2.f);
-    window.setView(cameraView);
-
 
     if (!bgTexture.loadFromFile("assets/background.png")) {
         throw std::invalid_argument("Bad background texture");
@@ -26,7 +18,7 @@ Game::Game(unsigned int window_w, unsigned int window_h)
     bgSprite.setTexture(bgTexture);
 
     for (int i=0; i<(int)InputAction::COUNT; i++) {
-        inputManager.inputStates[(InputAction) i] = InputState{false, false};
+        inputManager.globalInputs.inputStates[(InputAction) i] = InputState{false, false};
     }
 
     if (!fontSpritesheet.loadFromFile("assets/SpaceFont_big.png")) {
@@ -46,14 +38,18 @@ void Game::run() {
             }
             obj1->fixOverlap(*obj2);
         }
-        obj1->fixOverlap(player);
-        player.fixOverlap(*obj1);
+        for (auto& player : players) {
+            obj1->fixOverlap(*player);
+            player->fixOverlap(*obj1);
+        }
     }
-
-    if (player.getState() != State::DEAD) {
-        updateRelativeVelocities(player.velocity);
-        updateRelativePositions(player.position);
-        rotateCamera(-player.rotation);
+    for (auto& player : players) {
+        if (player->getState() != State::DEAD) {
+            updateRelativeVelocities(player->velocity);
+            updateRelativePositions(player->position);
+            //rotateCamera(player->id, -player->rotation);
+            break;
+        }
     }
 
     while (window.isOpen()) {
@@ -74,14 +70,51 @@ void Game::run() {
 // Spawning ----------------------------------------------------------------------------------------
 #pragma region Spawning
 
+
+Player* Game::addPlayer(sf::Color playerColor) {
+    playerCount += 1;
+    Vector2f windowSize = static_cast<Vector2f>(window.getSize());
+
+    int cols = (playerCount >= 2) ? 2 : 1;
+    int rows = (playerCount > 2) ? 2 : 1;
+    sf::Vector2f viewSize(windowSize.x / cols, windowSize.y / rows);
+    sf::Vector2f viewportSize(1.f / cols, 1.f / rows);
+    cameras.push_back(Camera{
+        sf::View(),
+        Vector2d(0,0),
+        Vector2d(0,0)
+    });
+    uiViews.push_back(sf::View());
+    for (int i=0; i<playerCount;i++) {
+
+        cameras[i].view.setSize(viewportSize);
+        uiViews[i].setSize(viewportSize);
+
+        int col = i%cols;
+        int row = i/cols;
+        
+        cameras[i].view.setViewport(sf::FloatRect{
+            Vector2f(col*viewportSize.x, row*viewportSize.y),
+            viewportSize
+        });
+        std::cout << viewSize.x << ", " << viewSize.y << std::endl;
+        // cameraView.setCenter(viewSize/2.f);
+        // uiView.setCenter(viewSize/2.f);
+    }
+    players.push_back(std::make_unique<Player>(playerColor));
+    return static_cast<Player*>(players.back().get());
+}
+
 Body* Game::addBody(
     Vector2d position, Vector2d velocity,
     double mass, double radius, 
     sf::Angle rotationalVelocity, double surfaceFriction, MatterState state,
     sf::Color color) {
-    if ((position - player.position).lengthSquared() < 1.0) {
-        player.position.y -= radius;
-        player.velocity = velocity;
+    for (auto& player : players) {
+        if ((position - player->position).lengthSquared() < 1.0) {
+            player->position.y -= radius;
+            player->velocity = velocity;
+        }
     }
     objects.push_back(std::make_unique<Body>(position, velocity, mass, radius, rotationalVelocity, surfaceFriction, state, color));
     return static_cast<Body*>(objects.back().get());
@@ -92,9 +125,11 @@ Body* Game::addBody(
     double mass, double radius, 
     sf::Angle rotationalVelocity, double surfaceFriction, MatterState state,
     sf::Color color, BodyTexture bodyTexture) {
-    if ((position - player.position).lengthSquared() < 1.0) {
-        player.position.y -= radius;
-        player.velocity = velocity;
+    for (auto& player : players) {
+        if ((position - player->position).lengthSquared() < 1.0) {
+            player->position.y -= radius;
+            player->velocity = velocity;
+        }
     }
     objects.push_back(std::make_unique<Body>(position, velocity, mass, radius, rotationalVelocity, surfaceFriction, state, color, bodyTexture));
     return static_cast<Body*>(objects.back().get());
@@ -177,12 +212,14 @@ Body* Game::addSatellite(
 }
 
 
-void Game::teleportPlayerTo(PhysObj* target) {
+void Game::teleportPlayerTo(int playerID, PhysObj* target) {
+    std::unique_ptr<Player>& player = players[playerID];
     Vector2d offset(0, -target->radius-GROUNDED_MARGIN);
-    player.position = target->position + offset;
-    player.velocity = target->velocity;
-    player.rotation = offset.angle() + sf::degrees(90);
-    player.fixOverlap(*target);
+    player->position = target->position + offset;
+    player->velocity = target->velocity;
+    player->rotation = offset.angle() + sf::degrees(90);
+    player->fixOverlap(*target);
+    cameras[playerID].position = player->position;
 }
 
 #pragma endregion
@@ -190,112 +227,148 @@ void Game::teleportPlayerTo(PhysObj* target) {
 // Input -------------------------------------------------------------------------------------------
 #pragma region Input
 
+using IA = InputAction;
+
 void Game::updateInputStates() {
     // Reset input states
-    for (auto& [input, state] : inputManager.inputStates) {
+    for (auto& [input, state] : inputManager.globalInputs.inputStates) {
         state = InputState{false, false};
     }
-    inputManager.directionalInput = sf::Vector2f(0,0);
+    inputManager.globalInputs.directionalInput = Vector2f(0,0);
+    for (int i=0; i<playerCount; i++) {
+        for (auto& [input, state] : inputManager.playerInputs[i].inputStates) {
+            state = InputState{false, false};
+        }
+        inputManager.playerInputs[i].directionalInput = Vector2f(0,0);
+    }
 
     while (const std::optional event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>())
             window.close();
 
         else if (const auto* resized = event->getIf<sf::Event::Resized>()) {
-            Vector2f viewSize((float)resized->size.x, (float)resized->size.y);
-            cameraView.setSize(viewSize);
-            uiView.setSize(viewSize);
-            cameraView.zoom(zoomScale);
-            cameraView.setCenter(viewSize/2.f);
-            uiView.setCenter(viewSize/2.f);
+            Vector2f newSize((float)resized->size.x, (float)resized->size.y);
+            int cols = (playerCount >= 2) ? 2 : 1;
+            int rows = (playerCount > 2) ? 2 : 1;
+            sf::Vector2f viewSize(newSize.x / cols, newSize.y / rows);
+            for (int i=0; i<playerCount;i++) {
+                cameras[i].view.setSize(viewSize);
+                uiViews[i].setSize(viewSize);
+            }
         }
 
         if (window.hasFocus()) {
             if (const auto* keyReleased = event->getIf<sf::Event::KeyReleased>()) {   
-                for (auto& [inputAction, keybinds] : inputManager.bindings) {
+                for (auto& [inputAction, keybinds] : inputManager.globalInputs.bindings) {
                     for (auto& key : keybinds)
                         if (key == keyReleased->scancode)
-                            inputManager.inputStates[inputAction].released = true;
+                            inputManager.globalInputs.inputStates[inputAction].released = true;
                         
                 }
-            }
+                for (int i=0; i<playerCount; i++) {
+                    for (auto& [inputAction, keybinds] : inputManager.playerInputs[i].bindings) {
+                        for (auto& key : keybinds)
+                            if (key == keyReleased->scancode)
+                                inputManager.playerInputs[i].inputStates[inputAction].released = true;
+                            
+                    }
+                }
+            } 
         }
     }
     if (!window.hasFocus()) return;
-    for (auto& [inputAction, state] : inputManager.inputStates) {
-        for (auto& key : inputManager.bindings[inputAction])
+    for (auto& [inputAction, state] : inputManager.globalInputs.inputStates) {
+        for (auto& key : inputManager.globalInputs.bindings[inputAction])
             if (sf::Keyboard::isKeyPressed(key)) state.pressed = true;
     }
-    if (inputManager.inputStates[InputAction::Up].pressed) {
-        inputManager.directionalInput.y -= 1.0;
+    for (int i=0; i<playerCount; i++) {
+        InputMap& playerInput = inputManager.playerInputs[i];
+        for (auto& [inputAction, state] : playerInput.inputStates) {
+            for (auto& key : playerInput.bindings[inputAction])
+                if (sf::Keyboard::isKeyPressed(key)) state.pressed = true;
+        }
+        if (playerInput.inputStates[InputAction::Up].pressed) {
+            playerInput.directionalInput.y -= 1.0;
+        }
+        if (playerInput.inputStates[InputAction::Down].pressed) {
+            playerInput.directionalInput.y += 1.0;
+        }
+        if (playerInput.inputStates[InputAction::Left].pressed) {
+            playerInput.directionalInput.x -= 1.0;
+        }
+        if (playerInput.inputStates[InputAction::Right].pressed) {
+            playerInput.directionalInput.x += 1.0;
+        }
+        if (playerInput.directionalInput.lengthSquared() > 0.0) {
+            sf::Angle cameraRotation = cameras[i].view.getRotation();
+            playerInput.directionalInput = (playerInput.directionalInput.normalized().rotatedBy(cameraRotation));
+        }
     }
-    if (inputManager.inputStates[InputAction::Down].pressed) {
-        inputManager.directionalInput.y += 1.0;
-    }
-    if (inputManager.inputStates[InputAction::Left].pressed) {
-        inputManager.directionalInput.x -= 1.0;
-    }
-    if (inputManager.inputStates[InputAction::Right].pressed) {
-        inputManager.directionalInput.x += 1.0;
-    }
-    if (inputManager.directionalInput.lengthSquared() != 0)
-        inputManager.directionalInput = inputManager.directionalInput.normalized();
+    
 }
 
 void Game::handleInput(double dt) {
-    if (!inputManager.inputStates[InputAction::DEBUG].pressed) {
-        if (inputManager.inputStates[InputAction::ZoomIn].released) {
-            zoomCamera(ZOOM_SPEED);
-        } else if (inputManager.inputStates[InputAction::ZoomOut].released) {
-            zoomCamera(1/ZOOM_SPEED);
+    if (!inputPressed(IA::DEBUG)) {
+        if (inputReleased(IA::ZoomIn)) {
+            zoomCamera(0, ZOOM_SPEED);
+        } else if (inputReleased(IA::ZoomOut)) {
+            zoomCamera(0, 1/ZOOM_SPEED);
         }
-        if (inputManager.inputStates[InputAction::ToggleFreecam].released) {
-            freecamEnabled = !freecamEnabled;
-            float windowWidth = window.getSize().x;
-            float windowHeight = window.getSize().y;
-            cameraView.setCenter({windowWidth/2.f, windowHeight/2.f});
-        }
-        if (player.getState() == State::DEAD) {
-            if (inputManager.directionalInput.lengthSquared() != 0) {
-                updateRelativePositions(static_cast<Vector2d>(inputManager.directionalInput)*(double)(CAMERA_SPEED*dt*zoomScale));
-            }
-        } else if (freecamEnabled) {
-            if (inputManager.directionalInput.lengthSquared() != 0) {
-                Vector2f cameraOffset = inputManager.directionalInput.rotatedBy(globalRotation)*(float)(CAMERA_SPEED*dt);
-                moveCamera(cameraOffset*zoomScale, cameraOffset*(float)BACKGROUND_SCROLL_SPEED);
-                inputManager.directionalInput = Vector2f(0,0);
-            }
-        }
-        if (inputManager.inputStates[InputAction::SpeedUp].released) {
+        if (inputReleased(IA::SpeedUp)) {
             timeScale *= 2.0;
-        } else if (inputManager.inputStates[InputAction::SpeedDown].released) {
+        } else if (inputReleased(IA::SpeedDown)) {
             timeScale *= 0.5;
         }
-        if (inputManager.inputStates[InputAction::ResetTimeScale].released) {
+        if (inputReleased(IA::ResetTimescale)) {
             timeScale = 1.0;
         }
-
-        if (inputManager.inputStates[InputAction::ToggleRotation].released) {
+        if (inputReleased(IA::ToggleRotation)) {
             copyRotation = !copyRotation;
         }
-
-        int rotation = inputManager.inputStates[InputAction::RotateR].pressed - inputManager.inputStates[InputAction::RotateL].pressed;
-        if (player.state != State::GROUNDED && rotation != 0) {
-            sf::Angle currentRotation = window.getView().getRotation();
-            rotateCamera(currentRotation + sf::degrees(2)*rotation*dt*CAMERA_ROTATE_SPEED);
+        bool playerAlive = false;
+        for (auto& player : players) {
+            if (player->getState() != State::DEAD) {
+                playerAlive = true;
+                // int rotationInput = inputPressed(player->id, IA::RotateR) - inputPressed(player->id, IA::RotateL);
+                // if (player->getState() != State::GROUNDED && rotationInput != 0) {
+                //     sf::Angle currentRotation = cameraViews[player->id].getRotation();
+                //     rotateCamera(player->id, currentRotation + sf::degrees(2)*rotationInput*dt*CAMERA_ROTATE_SPEED);
+                // }
+            }
         }
-        
+        // if (!playerAlive) {
+
+        // } 
+        // else if (freecamEnabled) {
+        //     if (inputManager.directionalInput.lengthSquared() != 0) {
+        //         Vector2f cameraOffset = inputManager.directionalInput.rotatedBy(globalRotation)*(float)(CAMERA_SPEED*dt);
+        //         moveCamera(0, cameraOffset*zoomScale, cameraOffset*(float)BACKGROUND_SCROLL_SPEED);
+        //         inputManager.directionalInput = Vector2f(0,0);
+        //     }
+        // }
+  
     } else { // Debug
-        if (inputManager.inputStates[InputAction::DEBUG_ShowVelocities].released) {
+        if (inputReleased(IA::DEBUG_ShowVelocities)) {
             drawVelocities = !drawVelocities;
         }
-        if (inputManager.inputStates[InputAction::DEBUG_ToggleReference].released) {
-            useParentAsReference = !useParentAsReference;
-        }
-        if (inputManager.inputStates[InputAction::DEBUG_EnlargePlanets].released) {
-            enlargePlanets = !enlargePlanets;
-        }
     }
+}
+
+
+bool Game::inputPressed(InputAction input) {
+    return inputManager.globalInputs.inputStates[input].pressed;
+}
+
+bool Game::inputPressed(int playerID, InputAction input) {
+    return inputManager.playerInputs[playerID].inputStates[input].pressed;
+}
+
+bool Game::inputReleased(InputAction input) {
+    return inputManager.globalInputs.inputStates[input].released;
+}
+
+bool Game::inputReleased(int playerID, InputAction input) {
+    return inputManager.playerInputs[playerID].inputStates[input].released;
 }
 
 #pragma endregion
@@ -304,10 +377,13 @@ void Game::handleInput(double dt) {
 #pragma region Update
 
 void Game::update(double dt) {
-    bool playerActive = player.getState() != State::DEAD;
-    player.parentObject = nullptr; // Reset parentObject to be determined on update
-    player.hasCollided = false;
-    player.isGrounded = false;
+    //bool playerActive = player.getState() != State::DEAD;
+    for (auto& player: players) {
+        player->parentObject = nullptr; // Reset parentObject to be determined on update
+        player->hasCollided = false;
+        player->isGrounded = false;
+    }
+    
     double delta = dt;
     int resolution = 1;
 
@@ -332,10 +408,11 @@ void Game::update(double dt) {
                 }
                 obj1->updateGravity(*obj2, delta);
             }
-            if (playerActive) {
-                obj1->updateGravity(player, delta);
-                player.updateGravity(*obj1, delta);
-            }        
+            for (auto& player : players) {
+                if (player->getState() == State::DEAD) continue;
+                obj1->updateGravity(*player, delta);
+                player->updateGravity(*obj1, delta);     
+            }
         }
 
         for (int i=0; i<COLLISION_RESOLUTION; i++) {
@@ -348,29 +425,36 @@ void Game::update(double dt) {
                     }
                     obj1->updateCollision(*obj2, delta);
                 }
-                if (playerActive) {
-                    obj1->updateCollision(player, delta);
-                    player.updateCollision(*obj1, delta);
-                }        
+                for (auto& player : players) {
+                    if (player->getState() == State::DEAD) continue;
+                    obj1->updateCollision(*player, delta);
+                    player->updateCollision(*obj1, delta);     
+                }
             }
             for (auto& obj : objects) {
                 obj->updateVelocity();
             }
-            player.updateVelocity();
+            for (auto& player : players) {
+                player->updateVelocity();
+            }
         }
 
         globalOrigin += globalVelocity*delta;
 
-        if (playerActive) {
-            player.update(delta);
-            player.handleInput(inputManager, window, delta);
+        for (auto& player : players) {
+            if (player->getState() == State::DEAD) continue;
+            player->update(delta);
+            player->handleInput(inputManager.playerInputs[player->id], delta);     
         }
 
         // Update positions based on velocities
         for (auto& obj : objects) {
             obj->updatePosition(delta);
         }
-        if (playerActive) player.updatePosition(delta);
+        for (auto& player : players) {
+            if (player->getState() == State::DEAD) continue;
+            player->updatePosition(delta);  
+        }
 
         // If collisions occured, check and fix overlap issues
         for (auto& obj1 : objects) {
@@ -381,24 +465,45 @@ void Game::update(double dt) {
                     }
                     obj1->fixOverlap(*obj2);
                 }
-                if (playerActive) {
-                    obj1->fixOverlap(player);
-                    player.fixOverlap(*obj1);
+                for (auto& player : players) {
+                    if (player->getState() == State::DEAD) continue;
+                    obj1->fixOverlap(*player);
+                    player->fixOverlap(*obj1);  
                 }
             }
         }
-        player.updateSmoke(delta);
+        for (auto& player : players) {
+            player->updateSmoke(delta);  
+        }
+        for (int i=0; i<cameras.size(); i++) {
+            centerCamera(i, 0.11);
+            cameras[i].view.setCenter(static_cast<Vector2f>(cameras[i].position));
+        }
         //std::cout << std::to_string((player.velocity - player.parentObject->velocity).length()) << std::endl;
-        if (playerActive) {
-            updateRelativeVelocities(player.velocity);
-            updateRelativePositions(player.position, CAMERA_LERP_SPEED);
-            if (player.state == State::GROUNDED && copyRotation && !freecamEnabled) {
-                updateRelativeRotations(player.rotation, CAMERA_ROTATE_SPEED);
+        bool offsetRelative = false;
+        for (auto& player : players) {
+            if (player->getState() != State::DEAD) {
+                if (!offsetRelative) {
+                    updateRelativePositions(player->position);
+                    updateRelativeVelocities(player->velocity);
+                    offsetRelative = true;
+                }
+                if (player->getState() == State::GROUNDED && copyRotation && !freecamEnabled) {
+                    updateRelativeRotations(player->id, player->rotation);
+                } else if (freecamEnabled) {
+                    if (freecamEnabled) {
+                        moveCamera(player->id, globalVelocity*dt);
+                    }
+                }
             }
-            //centerCamera(CAMERA_LERP_SPEED, player, false);
-            if (freecamEnabled) {
-                moveCamera(static_cast<sf::Vector2f>(globalVelocity*dt));
-            }
+        }
+    }
+    if (drawVelocities) {
+        for (auto& obj : objects) {
+            obj->updateOrbitalPath(VISUAL_ORBIT_RESOLUTION_SCALE);
+        }
+        for (auto& player : players) {
+            player->updateOrbitalPath(VISUAL_ORBIT_RESOLUTION_SCALE);
         }
     }
 }
@@ -407,43 +512,35 @@ void Game::updateRelativePositions(Vector2d newOrigin) {
     for (auto& obj : objects) {
         obj->position -= newOrigin;
     }
-    player.position -= newOrigin;
-    for (auto& particle : player.smokeArray) {
-        if (particle.lifespan <= 0) continue;
-        particle.pos -= (sf::Vector2f) newOrigin;
+    for (auto& camera : cameras) {
+        camera.position -= newOrigin;
+    }
+    for (auto& player : players) {
+        player->position -= newOrigin;
+        
+        for (auto& particle : player->smokeArray) {
+            if (particle.lifespan <= 0) continue;
+            particle.pos -= (sf::Vector2f) newOrigin;
+        }
     }
     globalOrigin -= newOrigin;
 }
 
-void Game::updateRelativePositions(Vector2d newOrigin, float lerpScale) {
-    float t = lerpScale*dt*zoomScale;
-    t = std::clamp(t, 0.f, 1.f);
-    float lerpX = std::lerp(0.f, newOrigin.x, t);
-    float lerpY = std::lerp(0.f, newOrigin.y, t);
-    Vector2d lerpOffset(lerpX, lerpY);
-    updateRelativePositions(lerpOffset);
-}
-
-void Game::updateRelativeRotations(sf::Angle newRotation, float lerpScale) {
-    float t = lerpScale*dt*zoomScale;
-    t = std::clamp(t, 0.f, 1.f);
-    float targetAngle = newRotation.asDegrees();
-    float currentAngle = cameraView.getRotation().asDegrees();
-    float diff = std::fmod(targetAngle - currentAngle + 180.f, 360.f);
-    if (diff < 0) diff += 360.f;
-        diff -= 180.f;
-    float lerpA = currentAngle + (diff+90.f) * t;
-    rotateCamera(sf::degrees(lerpA));
+void Game::updateRelativeRotations(int cameraID, sf::Angle newRotation) {
+    //rotateCamera(cameraID, newRotation);
 }
 
 void Game::updateRelativeVelocities(Vector2d newReferenceFrame) {
     for (auto& obj : objects) {
         obj->velocity -= newReferenceFrame;
     }
-    player.velocity -= newReferenceFrame;
-    for (auto& particle : player.smokeArray) {
-        if (particle.lifespan <= 0) continue;
-        particle.vel -= (sf::Vector2f) newReferenceFrame;
+    for (auto& player : players) {
+        player->velocity -= newReferenceFrame;
+        for (auto& particle : player->smokeArray) {
+            if (particle.lifespan <= 0) continue;
+            particle.vel -= (sf::Vector2f) newReferenceFrame;
+        }
+        cameras[player->id].velocity -= newReferenceFrame;
     }
     globalVelocity -= newReferenceFrame;
 }
@@ -456,70 +553,59 @@ void Game::updateRelativeVelocities(Vector2d newReferenceFrame) {
 
 void Game::draw(sf::RenderWindow& window) {
     window.clear();
+    for (int i=0; i<cameras.size(); i++) {
+        window.setView(cameras[i].view);
+        //drawBackground(window, dt);
+        //cameraViews[player->id].setCenter(static_cast<Vector2f>(player->position));
+        for (auto& player : players) {
+            player->drawSmoke(window);
+        }
 
-    window.setView(cameraView);
-    drawBackground(window, dt);
-    player.drawSmoke(window);
-
-    if (drawVelocities) {
-        for (auto& obj : objects) {
-            if (obj->parentObject) {
-                obj->drawOrbitalPath(window, VISUAL_ORBIT_RESOLUTION_SCALE);
+        if (drawVelocities) {
+            for (auto& obj : objects) {
+                if (obj->parentObject) {
+                    obj->drawOrbitalPath(window);
+                }
+            }
+            for (auto& player : players) {
+                player->drawOrbitalPath(window);
             }
         }
-    }
-    
-    for (auto& obj : objects) {
-        if (enlargePlanets) {
-            obj->draw(window, Vector2f(1.f, 1.f)*(1.f + (float)(500.f/obj->radius)));
-        } else {
+        
+        for (auto& obj : objects) {
             obj->draw(window);
         }
-        
-    }
-    if (player.getState() != State::DEAD) {
-        if (drawVelocities && player.parentObject) player.drawOrbitalPath(window, VISUAL_ORBIT_RESOLUTION_SCALE);
-        player.draw(window);
-    }
-    if (drawVelocities) {
-        Vector2d referenceVelocity = globalVelocity;
-        if (player.getState() != State::DEAD) referenceVelocity = player.velocity;
-        for (auto& obj : objects) {
-            Vector2d thisReferenceVelocity = referenceVelocity;
-            if (useParentAsReference && obj->parentObject) thisReferenceVelocity = obj->parentObject->velocity;
-            // obj->drawVelocity(window, thisReferenceVelocity, DEBUG_VELOCITY_SCALE);
+        for (auto& player : players) {
+            if (player->id == i) continue;
+            if (player->getState() != State::DEAD) {
+                player->draw(window);
+            }
         }
-        if (player.getState() != State::DEAD) {
-            Vector2d thisReferenceVelocity = referenceVelocity;
-            if (useParentAsReference && player.parentObject) thisReferenceVelocity = player.parentObject->velocity;
-            //player.drawVelocity(window, thisReferenceVelocity, DEBUG_VELOCITY_SCALE);
-            
-        }
+        players[i]->draw(window);
+        window.setView(uiViews[i]);
+            // Draw UI
     }
-
-    window.setView(uiView);
     
-    // Draw UI
-
-    window.setView(cameraView);
     window.display();
 }
 
 void Game::drawBackground(sf::RenderWindow& window, double dt) {
-    if (!freecamEnabled) {
-        bgOffset += timeScale*static_cast<sf::Vector2f>(globalVelocity*BACKGROUND_SCROLL_SPEED*dt)/zoomScale;
+    for (auto& player : players) {
+        if (!freecamEnabled) {
+            bgOffset = timeScale*static_cast<sf::Vector2f>((globalOrigin-player->position)*BACKGROUND_SCROLL_SPEED)/zoomScale;
+        }
+        int windowX = static_cast<int>(cameras[player->id].view.getSize().x);
+        int windowY = static_cast<int>(cameras[player->id].view.getSize().y);
+        int windowM = std::max(windowX, windowY);
+        int offsetX = -bgOffset.x;
+        int offsetY = -bgOffset.y;
+        bgSprite.setTextureRect(sf::IntRect({offsetX, offsetY}, {2*windowX, 2*windowY}));
+        
+        bgSprite.setOrigin(sf::Vector2f(windowX, windowY));
+        bgSprite.setPosition(static_cast<sf::Vector2f>(cameras[player->id].position));
+        bgSprite.setScale(sf::Vector2f(1.0, 1.0) * zoomScale);
+        window.draw(bgSprite);
     }
-    int windowX = static_cast<int>(window.getSize().x);
-    int windowY = static_cast<int>(window.getSize().y);
-    int windowM = std::max(windowX, windowY);
-    int offsetX = -bgOffset.x;
-    int offsetY = -bgOffset.y;
-    bgSprite.setTextureRect(sf::IntRect({offsetX, offsetY}, {2*windowX, 2*windowY}));
-    
-    bgSprite.setOrigin(sf::Vector2f(windowX, windowY));
-    bgSprite.setPosition(cameraView.getCenter());
-    bgSprite.setScale(sf::Vector2f(1.0, 1.0) * zoomScale);
-    window.draw(bgSprite);
 }
 
 #pragma endregion
@@ -527,26 +613,58 @@ void Game::drawBackground(sf::RenderWindow& window, double dt) {
 // Camera ------------------------------------------------------------------------------------------
 #pragma region Camera
 
-void Game::moveCamera(sf::Vector2f offset) {
-    cameraView.move(offset);
+void Game::moveCamera(int cameraID, Vector2d offset) {
+    cameras[cameraID].position -= offset;
 }
 
-void Game::moveCamera(sf::Vector2f offset, Vector2f backGroundOffset) {
-    moveCamera(offset);
+void Game::moveCamera(int cameraID, Vector2d offset, Vector2f backGroundOffset) {
+    moveCamera(cameraID, offset);
     bgOffset -= backGroundOffset;
 }
 
-void Game::rotateCamera(sf::Angle targetAngle) {
-    cameraView.setRotation(targetAngle);
-    globalRotation = targetAngle;
+void Game::centerCamera(int playerID) {
+    cameras[playerID].position = players[playerID]->position;
+    if (players[playerID]->getState() == State::GROUNDED) {
+        rotateCamera(playerID, players[playerID]->rotation);
+    }
 }
 
-void Game::zoomCamera(float zoomValue) {
+void Game::centerCamera(int playerID, float lerpScale) {
+    float t = lerpScale*dt*zoomScale;
+    t = std::clamp(t, 0.f, 1.f);
+    Vector2f playerPosition = static_cast<Vector2f>(players[playerID]->position);
+    Vector2f cameraPosition = static_cast<Vector2f>(cameras[playerID].position);
+    //Vector2d relativePosition = playerPosition - cameraPosition;
+    float lerpX = std::lerp(cameraPosition.x, playerPosition.x, t);
+    float lerpY = std::lerp(cameraPosition.y, playerPosition.y, t);
+    Vector2d lerpOffset(lerpX, lerpY);
+    cameras[playerID].position = lerpOffset;
+    if (players[playerID]->getState() == State::GROUNDED) {
+        rotateCamera(playerID, players[playerID]->rotation, CAMERA_ROTATE_SPEED);
+    }
+}
+
+void Game::rotateCamera(int cameraID, sf::Angle targetAngle) {
+    cameras[cameraID].view.setRotation(targetAngle + sf::degrees(90));
+}
+
+void Game::rotateCamera(int cameraID, sf::Angle targetAngle, float lerpScale) {
+    float t = lerpScale*dt*zoomScale;
+    t = std::clamp(t, 0.f, 1.f);
+    float currentAngle = cameras[cameraID].view.getRotation().asDegrees();
+    float diff = std::fmod(targetAngle.asDegrees() - currentAngle + 180.f, 360.f);
+    if (diff < 0) diff += 360.f;
+        diff -= 180.f;
+    float lerpA = currentAngle + (diff+90.f) * t;
+    cameras[cameraID].view.setRotation(sf::degrees(lerpA));
+}
+
+void Game::zoomCamera(int cameraID, float zoomValue) {
     if (zoomScale*zoomValue < MIN_ZOOM_SCALE) {
         return;
     }
     zoomScale *= zoomValue;
-    cameraView.zoom(zoomValue);
+    cameras[cameraID].view.zoom(zoomValue);
 }
 
 #pragma endregion

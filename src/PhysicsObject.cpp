@@ -298,17 +298,30 @@ bool PhysObj::isOnEscapeTrajectory(PhysObj& other) {
 // Drawing -----------------------------------------------------------------------------------------
 #pragma region Visualization
 
-std::vector<Vector2d> PhysicsObject::getOrbitalPath(double duration, int resolutionScale) {
-    if (parentObject) return getOrbitalPath(*parentObject, duration, resolutionScale);
-    return std::vector<Vector2d>{Vector2d(0,0), velocity*duration};
+void PhysicsObject::updateOrbitalPath(int resolutionScale) {
+    if (!parentObject) return;
+    double period = getOrbitalPeriod(*parentObject);
+    if (period <= 0.0 || isOnEscapeTrajectory(*parentObject)) {
+        if (parentObject->parentObject) {
+            period = getOrbitalPeriod(*(parentObject->parentObject));
+        } else {
+            period = 5.0; // Arbitrary path length for objects not in orbit
+        }
+    }
+    updateOrbitalPath(period, resolutionScale);
 }
 
-std::vector<Vector2d> PhysicsObject::getOrbitalPath(PhysObj& referenceObject, double duration, int resolutionScale) {
+void PhysicsObject::updateOrbitalPath(double duration, int resolutionScale) {
+    if (parentObject) updateOrbitalPath(*parentObject, duration, resolutionScale);
+    else orbitalPath.clear();
+}
+
+void PhysicsObject::updateOrbitalPath(PhysObj& referenceObject, double duration, int resolutionScale) {
     int resolution = resolutionScale;
     double timeDelta = duration/resolutionScale;
     Vector2d initialPosition = position;
     Vector2d initialVelocity = velocity;
-    std::vector<Vector2d> orbitalPath;
+    orbitalPath.clear();
 
     velocity -= referenceObject.velocity;
     int numCollisions = 0;
@@ -330,18 +343,9 @@ std::vector<Vector2d> PhysicsObject::getOrbitalPath(PhysObj& referenceObject, do
     }
     position = initialPosition;
     velocity = initialVelocity;
-    return orbitalPath;
 }
 
-void PhysObj::drawOrbitalPath(sf::RenderWindow& window, double duration, int resolutionScale) {
-    std::vector<Vector2d> orbitalPath;
-    if (parentObject) {
-        if (isOnEscapeTrajectory(*parentObject) && parentObject->parentObject) {
-            orbitalPath = getOrbitalPath(*(parentObject->parentObject), duration, resolutionScale);
-        } else {
-            orbitalPath = getOrbitalPath(*parentObject, duration, resolutionScale);
-        }
-    }
+void PhysObj::drawOrbitalPath(sf::RenderWindow& window) {
     int vertexCount = orbitalPath.size() + 1;;
     bool isFullOrbit = false;
     // if (orbitalPath.back().length() < radius) {
@@ -350,15 +354,14 @@ void PhysObj::drawOrbitalPath(sf::RenderWindow& window, double duration, int res
     // }
     if (vertexCount < 2) return;
     sf::VertexArray pathLine = sf::VertexArray(sf::PrimitiveType::LineStrip, vertexCount);
-    Vector2d center = static_cast<Vector2d>(window.getSize())/2.0;
 
     sf::Color lineColor = sf::Color(150,150,255);
 
-    pathLine[0].position = static_cast<sf::Vector2f>(position + center);
+    pathLine[0].position = static_cast<sf::Vector2f>(position);
     pathLine[0].color = lineColor;
     for (int i=0; i<orbitalPath.size(); i++) {
         double completionPercent = (double)i/(double)orbitalPath.size();
-        pathLine[i+1].position = static_cast<sf::Vector2f>(position + orbitalPath[i] + center);
+        pathLine[i+1].position = static_cast<sf::Vector2f>(position + orbitalPath[i]);
         lineColor.a = std::min(255.0, 255*(1.0 - completionPercent) + 50.0);        
         pathLine[i+1].color = lineColor;
     }
@@ -372,34 +375,16 @@ void PhysObj::drawOrbitalPath(sf::RenderWindow& window, double duration, int res
 
 void PhysObj::drawVelocity(sf::RenderWindow& window, Vector2d referenceVelocity, double scale) {
     Vector2d relativeVelocity = velocity - referenceVelocity;
-    Vector2d center = static_cast<Vector2d>(window.getSize())/2.0;
 
     sf::Color lineColor = sf::Color(255,0,0);
     
     sf::VertexArray velocityLine(sf::PrimitiveType::Lines, 2); 
-    velocityLine[0].position = static_cast<sf::Vector2f>(position + center);
+    velocityLine[0].position = static_cast<sf::Vector2f>(position);
     velocityLine[0].color = lineColor;
-    velocityLine[1].position = static_cast<sf::Vector2f>(position + center + relativeVelocity*scale);
+    velocityLine[1].position = static_cast<sf::Vector2f>(position + relativeVelocity*scale);
     velocityLine[1].color = lineColor;
 
     window.draw(velocityLine);
-}
-
-
-void PhysObj::drawOrbitalPath(sf::RenderWindow& window, int resolutionScale) {
-    if (!parentObject) return;
-    double period = getOrbitalPeriod(*parentObject);
-    if (period <= 0.0 || isOnEscapeTrajectory(*parentObject)) {
-        if (parentObject->parentObject) {
-            period = getOrbitalPeriod(*(parentObject->parentObject));
-        } else {
-            period = 5.0; // Arbitrary path length for objects not in orbit
-        }
-    }
-    
-    //resolutionScale = std::max(1, (int)(resolutionScale/(sqrt(period)/10.0)));
-    //resolutionScale = std::max(1, (int)(60*resolutionScale/period));
-    drawOrbitalPath(window, period, 300);
 }
 
 
@@ -459,8 +444,7 @@ Body::Body(Vector2d position, Vector2d velocity,
 }
 
 void Body::draw(sf::RenderWindow& window) {
-    sf::Vector2f center = static_cast<sf::Vector2f>(window.getSize())/2.f;
-    shape.setPosition(static_cast<sf::Vector2f>(position) + center);
+    shape.setPosition(static_cast<sf::Vector2f>(position));
     shape.setRotation(rotation);
     window.draw(shape);
 }

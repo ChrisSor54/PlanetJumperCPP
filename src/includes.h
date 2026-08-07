@@ -37,13 +37,12 @@ enum class InputAction {
     ZoomOut,
     SpeedUp,
     SpeedDown,
-    ResetTimeScale,
+    ResetTimescale,
     ToggleRotation,
     ToggleFreecam,
     DEBUG,
     DEBUG_ShowVelocities,
     DEBUG_ToggleReference,
-    DEBUG_EnlargePlanets,
     COUNT
 };
 
@@ -52,31 +51,75 @@ struct InputState {
     bool released = false;
 };
 
+struct InputMap {
+    std::unordered_map<InputAction, std::vector<sfKey>> bindings;
+    std::unordered_map<InputAction, InputState> inputStates;
+    Vector2f directionalInput = Vector2f(0,0);
+};
+
+
+
 struct InputManager {
-    std::unordered_map<InputAction, std::vector<sfKey>> bindings = {
-        {InputAction::Up,                       {sfKey::W, sfKey::Up}},
-        {InputAction::Down,                     {sfKey::S, sfKey::Down}},
-        {InputAction::Left,                     {sfKey::A, sfKey::Left}},
-        {InputAction::Right,                    {sfKey::D, sfKey::Right}},
-        {InputAction::RotateR,                  {sfKey::E}},
-        {InputAction::RotateL,                  {sfKey::Q}},
-        {InputAction::Jump,                     {sfKey::Space}},
-        {InputAction::Walk,                     {sfKey::LShift}},
+    std::unordered_map<int, InputMap> playerInputs = {
+        {0, {{
+            {InputAction::Up,                       {sfKey::W}},
+            {InputAction::Down,                     {sfKey::S}},
+            {InputAction::Left,                     {sfKey::A}},
+            {InputAction::Right,                    {sfKey::D}},
+            {InputAction::Jump,                     {sfKey::Space}},
+            {InputAction::Walk,                     {sfKey::LShift}},
+            {InputAction::RotateR,                  {sfKey::E}},
+            {InputAction::RotateL,                  {sfKey::Q}},
+            }, {}, Vector2f(0,0)
+        }},
+        {1, {{
+            {InputAction::Up,                       {sfKey::Up}},
+            {InputAction::Down,                     {sfKey::Down}},
+            {InputAction::Left,                     {sfKey::Left}},
+            {InputAction::Right,                    {sfKey::Right}},
+            {InputAction::Jump,                     {sfKey::RControl}},
+            {InputAction::Walk,                     {sfKey::RShift}},
+            {InputAction::RotateR,                  {sfKey::E}},
+            {InputAction::RotateL,                  {sfKey::Q}},
+            }, {}, Vector2f(0,0)
+        }},
+        {2, {{
+            {InputAction::Up,                       {sfKey::W}},
+            {InputAction::Down,                     {sfKey::S}},
+            {InputAction::Left,                     {sfKey::A}},
+            {InputAction::Right,                    {sfKey::D}},
+            {InputAction::Jump,                     {sfKey::Space}},
+            {InputAction::Walk,                     {sfKey::LShift}},
+            {InputAction::RotateR,                  {sfKey::E}},
+            {InputAction::RotateL,                  {sfKey::Q}},
+            }, {}, Vector2f(0,0)
+        }},
+        {3, {{
+            {InputAction::Up,                       {sfKey::W}},
+            {InputAction::Down,                     {sfKey::S}},
+            {InputAction::Left,                     {sfKey::A}},
+            {InputAction::Right,                    {sfKey::D}},
+            {InputAction::Jump,                     {sfKey::Space}},
+            {InputAction::Walk,                     {sfKey::LShift}},
+            {InputAction::RotateR,                  {sfKey::E}},
+            {InputAction::RotateL,                  {sfKey::Q}},
+            }, {}, Vector2f(0,0)
+        }}
+    };
+
+    InputMap globalInputs = {{
         {InputAction::ZoomIn,                   {sfKey::PageDown}},
         {InputAction::ZoomOut,                  {sfKey::PageUp}},
         {InputAction::SpeedUp,                  {sfKey::Period}},
         {InputAction::SpeedDown,                {sfKey::Comma}},
-        {InputAction::ResetTimeScale,           {sfKey::Slash}},
+        {InputAction::ResetTimescale,           {sfKey::Slash}},
         {InputAction::ToggleRotation,           {sfKey::R}},
         {InputAction::ToggleFreecam,            {sfKey::F}},
         {InputAction::DEBUG,                    {sfKey::LControl}},
         {InputAction::DEBUG_ShowVelocities,     {sfKey::S}},
-        {InputAction::DEBUG_ToggleReference,    {sfKey::R}},
-        {InputAction::DEBUG_EnlargePlanets,     {sfKey::E}},
+        {InputAction::DEBUG_ToggleReference,    {sfKey::R}}
+    }, {}, Vector2f(0, 0)
     };
-
-    Vector2f directionalInput = Vector2f(0,0);
-    std::unordered_map<InputAction, InputState> inputStates = {};
 };
 
 
