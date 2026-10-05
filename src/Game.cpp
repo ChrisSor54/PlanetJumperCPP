@@ -328,10 +328,10 @@ void Game::updateInputStates() {
 void Game::handleInput(double dt) {
     if (!inputPressed(IA::DEBUG)) {
         for (auto& player : players) {
-            if (inputReleased(player->id, IA::ZoomIn)) {
-                zoomCamera(player->id, ZOOM_SPEED);
-            } else if (inputReleased(player->id, IA::ZoomOut)) {
-                zoomCamera(player->id, 1/ZOOM_SPEED);
+            if (inputReleased(player->playerID, IA::ZoomIn)) {
+                zoomCamera(player->playerID, ZOOM_SPEED);
+            } else if (inputReleased(player->playerID, IA::ZoomOut)) {
+                zoomCamera(player->playerID, 1/ZOOM_SPEED);
             }
         }
 

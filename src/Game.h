@@ -98,14 +98,8 @@ class Game {
             BodyTexture satTexture
         );
 
-<<<<<<< Updated upstream
         void teleportPlayerTo(Player* player, PhysicsObject* target);
-=======
-        void teleportPlayerTo(int playerID, PhysicsObject* target);
-
         void drawString(sf::RenderTarget& target, sf::String string, sf::Vector2f pos);
->>>>>>> Stashed changes
-        
     private:
         // Members
         InputManager inputManager;

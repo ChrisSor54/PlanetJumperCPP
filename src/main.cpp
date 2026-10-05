@@ -40,13 +40,7 @@ int main() {
     Game game(1280, 720);
 
     Player* player1 = game.addPlayer(sf::Color(255, 255, 255));
-<<<<<<< Updated upstream
-    // Player* player2 = game.addPlayer(sf::Color(234, 120, 245));
-    // Player* player3 = game.addPlayer(sf::Color(255, 255, 0));
-    // Player* player4 = game.addPlayer(sf::Color(0, 120, 245));
-=======
     //Player* player2 = game.addPlayer(sf::Color(234, 120, 245));
->>>>>>> Stashed changes
     //Player* player3 = game.addPlayer(sf::Color(0, 0, 255));
 
     // Star A
@@ -191,15 +185,10 @@ int main() {
 
 
 
-<<<<<<< Updated upstream
     game.teleportPlayerTo(player1, planetA);
     // game.teleportPlayerTo(player2, moonA1);
     // game.teleportPlayerTo(player3, planetB);
     // game.teleportPlayerTo(player4, moonE1);
-=======
-    game.teleportPlayerTo(0, planetA);
-    //game.teleportPlayerTo(1, moonA1);
->>>>>>> Stashed changes
 
     game.run();
     
