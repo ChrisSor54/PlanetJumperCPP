@@ -40,6 +40,8 @@ enum class InputAction {
     ResetTimescale,
     ToggleRotation,
     ToggleFreecam,
+    AddPlayer,
+    RemovePlayer,
     DEBUG,
     DEBUG_ShowVelocities,
     DEBUG_ToggleReference,
@@ -121,9 +123,11 @@ struct InputManager {
         {InputAction::ResetTimescale,           {sfKey::Slash}},
         {InputAction::ToggleRotation,           {sfKey::R}},
         {InputAction::ToggleFreecam,            {sfKey::F}},
+        {InputAction::AddPlayer,                {sfKey::Equal}},
+        {InputAction::RemovePlayer,             {sfKey::Hyphen}},
         {InputAction::DEBUG,                    {sfKey::LControl}},
         {InputAction::DEBUG_ShowVelocities,     {sfKey::S}},
-        {InputAction::DEBUG_ToggleReference,    {sfKey::R}}
+        {InputAction::DEBUG_ToggleReference,    {sfKey::R}},
     }, {}, Vector2f(0, 0)
     };
 };

@@ -8,6 +8,7 @@
 
 struct Camera {
     sf::View view;
+    sf::View uiView;
     Vector2d position = Vector2d(0,0);
     Vector2d velocity = Vector2d(0,0);
     Vector2f bgOffset = Vector2f(0,0);
@@ -43,6 +44,7 @@ class Game {
         void run();
 
         Player* addPlayer(sf::Color color);
+        void removePlayer(int playerID);
 
         Body* addBody(
             Vector2d position,
@@ -96,7 +98,13 @@ class Game {
             BodyTexture satTexture
         );
 
+<<<<<<< Updated upstream
         void teleportPlayerTo(Player* player, PhysicsObject* target);
+=======
+        void teleportPlayerTo(int playerID, PhysicsObject* target);
+
+        void drawString(sf::RenderTarget& target, sf::String string, sf::Vector2f pos);
+>>>>>>> Stashed changes
         
     private:
         // Members
@@ -109,20 +117,27 @@ class Game {
         float timeScale = 1.0;
         float dt;
 
+        bool queueAddPlayer = false;
+        bool queueRemovePlayer = false;
+
+
         std::vector<std::unique_ptr<Player>> players;
         unsigned int playerCount = 0;
 
         bool freecamEnabled = false;
         bool copyRotation = true;
 
-        std::vector<Camera> cameras;
-        std::vector<sf::View> uiViews;
+        //std::vector<Camera> cameras;
+        std::unordered_map<int, Camera> cameras;
 
         sf::Vector2f bgSize;
         sf::Texture bgTexture;
         sf::Sprite bgSprite;
 
-        sf::Texture fontSpritesheet;
+        static sf::Texture fontSpritesheet;
+        static bool fontSpritesheetLoaded;
+        std::vector<sf::Sprite> stringSprites;
+        
 
         // Debug flags
         bool drawVelocities = false;
@@ -145,7 +160,8 @@ class Game {
         
         void drawVisualOrbits(double duration, int resolution);
 
-        // Camera
+        // Cameras and Views
+        void updateViews();
         void centerCamera(int playerID);
         void centerCamera(int playerID, float lerpScale);
         void moveCamera(int cameraID, Vector2d offset);
@@ -158,5 +174,4 @@ class Game {
         void draw(sf::RenderWindow& window);
         void drawBackground(int cameraID, sf::RenderWindow& window, double dt);
         void drawUI(sf::RenderWindow& window);
-        void drawText(sf::String string, Vector2f position);
 };

@@ -51,15 +51,16 @@ void Game::run() {
             break;
         }
     }
+    updateViews();
 
-    int cols = (playerCount >= 2) ? 2 : 1;
-    int rows = (playerCount > 2) ? 2 : 1;
-    sf::Vector2u windowSize = window.getSize();
-    sf::Vector2f viewSize(windowSize.x/cols, windowSize.y/rows);
-    for (int i=0; i<playerCount;i++) {
-        cameras[i].view.setSize(viewSize);
-        uiViews[i].setSize(viewSize);
-    }
+    // int cols = (playerCount >= 2) ? 2 : 1;
+    // int rows = (playerCount > 2) ? 2 : 1;
+    // sf::Vector2u windowSize = window.getSize();
+    // sf::Vector2f viewSize(windowSize.x/cols, windowSize.y/rows);
+    // for (int i=0; i<playerCount;i++) {
+    //     cameras[i].view.setSize(viewSize);
+    //     uiViews[i].setSize(viewSize);
+    // }
 
     while (window.isOpen()) {
         dt = clock.restart().asSeconds(); // get deltatime
@@ -81,37 +82,43 @@ void Game::run() {
 
 
 Player* Game::addPlayer(sf::Color playerColor) {
+    int playerID = playerCount;
     playerCount += 1;
-    Vector2f windowSize = static_cast<Vector2f>(window.getSize());
+    // Vector2f windowSize = static_cast<Vector2f>(window.getSize());
 
-    int cols = (playerCount >= 2) ? 2 : 1;
-    int rows = (playerCount > 2) ? 2 : 1;
-    sf::Vector2f viewSize(windowSize.x / cols, windowSize.y / rows);
-    sf::Vector2f viewportSize(1.f / cols, 1.f / rows);
-    cameras.push_back(Camera{
+    // int cols = (playerCount >= 2) ? 2 : 1;
+    // int rows = (playerCount > 2) ? 2 : 1;
+    // sf::Vector2f viewSize(windowSize.x / cols, windowSize.y / rows);
+    // sf::Vector2f viewportSize(1.f / cols, 1.f / rows);
+    cameras[playerID] = Camera{
+        sf::View(),
         sf::View(),
         Vector2d(0,0),
         Vector2d(0,0)
-    });
-    uiViews.push_back(sf::View());
-    for (int i=0; i<playerCount;i++) {
+    };
+    // for (int i=0; i<playerCount;i++) {
 
-        cameras[i].view.setSize(viewportSize);
-        uiViews[i].setSize(viewportSize);
+    //     cameras[i].view.setSize(viewportSize);
+    //     uiViews[i].setSize(viewportSize);
 
-        int col = i%cols;
-        int row = i/cols;
+    //     int col = i%cols;
+    //     int row = i/cols;
         
-        cameras[i].view.setViewport(sf::FloatRect{
-            Vector2f(col*viewportSize.x, row*viewportSize.y),
-            viewportSize
-        });
-        std::cout << viewSize.x << ", " << viewSize.y << std::endl;
-        // cameraView.setCenter(viewSize/2.f);
-        // uiView.setCenter(viewSize/2.f);
-    }
-    players.push_back(std::make_unique<Player>(playerColor));
+    //     cameras[i].view.setViewport(sf::FloatRect{
+    //         Vector2f(col*viewportSize.x, row*viewportSize.y),
+    //         viewportSize
+    //     });
+    //     // std::cout << viewSize.x << ", " << viewSize.y << std::endl;
+    //     // cameraView.setCenter(viewSize/2.f);
+    //     // uiView.setCenter(viewSize/2.f);
+    // }
+    players.push_back(std::make_unique<Player>(playerID, playerColor));
+    updateViews();
     return static_cast<Player*>(players.back().get());
+}
+
+void Game::removePlayer(int playerID) {
+
 }
 
 Body* Game::addBody(
@@ -255,15 +262,16 @@ void Game::updateInputStates() {
             window.close();
 
         else if (const auto* resized = event->getIf<sf::Event::Resized>()) {
-            Vector2f newSize((float)resized->size.x, (float)resized->size.y);
-            int cols = (playerCount >= 2) ? 2 : 1;
-            int rows = (playerCount > 2) ? 2 : 1;
-            sf::Vector2f viewSize(newSize.x / cols, newSize.y / rows);
-            for (int i=0; i<playerCount;i++) {
-                cameras[i].view.setSize(viewSize);
-                uiViews[i].setSize(viewSize);
-                cameras[i].view.zoom(cameras[i].zoomScale);
-            }
+            // Vector2f newSize((float)resized->size.x, (float)resized->size.y);
+            // int cols = (playerCount >= 2) ? 2 : 1;
+            // int rows = (playerCount > 2) ? 2 : 1;
+            // sf::Vector2f viewSize(newSize.x / cols, newSize.y / rows);
+            // for (int i=0; i<playerCount;i++) {
+            //     cameras[i].view.setSize(viewSize);
+            //     uiViews[i].setSize(viewSize);
+            //     cameras[i].view.zoom(cameras[i].zoomScale);
+            // }
+            updateViews();
         }
 
         if (window.hasFocus()) {
@@ -291,6 +299,7 @@ void Game::updateInputStates() {
             if (sf::Keyboard::isKeyPressed(key)) state.pressed = true;
     }
     for (int i=0; i<playerCount; i++) {
+        if (players[i] == nullptr) {continue;}
         InputMap& playerInput = inputManager.playerInputs[i];
         for (auto& [inputAction, state] : playerInput.inputStates) {
             for (auto& key : playerInput.bindings[inputAction])
@@ -337,6 +346,9 @@ void Game::handleInput(double dt) {
         }
         if (inputReleased(IA::ToggleRotation)) {
             copyRotation = !copyRotation;
+        }
+        if (inputReleased(IA::AddPlayer)) {
+            queueAddPlayer = true;
         }
         bool playerAlive = false;
         for (auto& player : players) {
@@ -457,7 +469,7 @@ void Game::update(double dt) {
         for (auto& player : players) {
             if (player->getState() == State::DEAD) continue;
             player->update(delta);
-            player->handleInput(inputManager.playerInputs[player->id], delta);     
+            player->handleInput(inputManager.playerInputs[player->playerID], delta);     
         }
 
         // Update positions based on velocities
@@ -512,8 +524,8 @@ void Game::update(double dt) {
         updateRelativeVelocities(relativeVelocityOrigin);
     }
     for (auto& player : players) {
-        Camera& camera = cameras[player->id];
-        centerCamera(player->id);
+        Camera& camera = cameras[player->playerID];
+        centerCamera(player->playerID);
         // Vector2d relVel = camera.velocity - player->velocity;
     }
     if (drawVelocities) {
@@ -523,6 +535,20 @@ void Game::update(double dt) {
         for (auto& player : players) {
             player->updateOrbitalPath(VISUAL_ORBIT_RESOLUTION_SCALE);
         }
+    }
+
+    if (queueAddPlayer) {
+        if (playerCount <= 4) {
+            int r = (playerCount * 100)%255;
+            int g = (playerCount * 50)%255;
+            int b = (playerCount * 75)%255;
+            Player* player = addPlayer(sf::Color(r,g,b,1));
+            player->position = Vector2d(0,0);
+        }
+        queueAddPlayer = false;
+    } else if (queueRemovePlayer) {
+        int playerID = playerCount - 1;
+        queueRemovePlayer = false;
     }
 }
 
@@ -538,7 +564,7 @@ void Game::updateRelativePositions(Vector2d newOrigin) {
             particle.pos -= (sf::Vector2f) newOrigin;
         }
     }
-    for (auto& camera : cameras) {
+    for (auto& [cameraID, camera] : cameras) {
         camera.position -= newOrigin;
     }
     globalOrigin -= newOrigin;
@@ -559,7 +585,7 @@ void Game::updateRelativeVelocities(Vector2d newReferenceFrame) {
             particle.vel -= (sf::Vector2f) newReferenceFrame;
         }
     }
-    for (auto& camera : cameras) {
+    for (auto& [cameraID, camera] : cameras) {
         camera.velocity -= newReferenceFrame;
     }
     globalVelocity -= newReferenceFrame;
@@ -596,14 +622,16 @@ void Game::draw(sf::RenderWindow& window) {
             obj->draw(window);
         }
         for (auto& player : players) {
-            if (player->id == i) continue;
+            if (player->playerID == i) continue;
             if (player->getState() != State::DEAD) {
                 player->draw(window);
             }
         }
         players[i]->draw(window);
-        window.setView(uiViews[i]);
+        window.setView(cameras[i].uiView);
             // Draw UI
+        drawString(window, sf::String("TEST"), {0.f,0.f});
+
     }
     
     window.display();
@@ -627,10 +655,67 @@ void Game::drawBackground(int cameraID, sf::RenderWindow& window, double dt) {
     window.draw(bgSprite);
 }
 
+sf::Texture Game::fontSpritesheet;
+bool Game::fontSpritesheetLoaded = false;
+
+void Game::drawString(sf::RenderTarget& target, sf::String string, sf::Vector2f position) {
+    if (!fontSpritesheetLoaded) {
+        if (!fontSpritesheet.loadFromFile("assets/SpaceFont_big.png")) {
+            throw std::invalid_argument("Bad font texture");
+        }
+        fontSpritesheetLoaded = true;
+    }
+
+    sf::Vector2i cellSize = sf::Vector2i(16,16);
+
+    sf::Sprite charSprite = sf::Sprite(fontSpritesheet);
+    float x = position.x;
+    // charSprite.setPosition(position);
+    // target.draw(charSprite);
+
+    for (unsigned char c : string) {
+        if (c == '\n') { x = position.x; position.y += cellSize.y; continue; }
+
+        int i = c-32;  // atlas starts at ASCII 32 (space)
+        charSprite.setTextureRect(sf::IntRect({(i % 13) * cellSize.x, (i / 13) * cellSize.y}, cellSize));
+        charSprite.setPosition({x, position.y});
+        target.draw(charSprite);
+
+        x += cellSize.x;
+    }
+}
+
 #pragma endregion
 
 // Camera ------------------------------------------------------------------------------------------
-#pragma region Camera
+#pragma region Cameras and Views
+
+
+void Game::updateViews() {
+    sf::Vector2f winSize(window.getSize());
+    int cols = (playerCount > 2) ? 2 : 1;
+    int rows = (playerCount+1)/2;
+    if (playerCount == 2) {
+        rows = 2;
+    }
+
+    sf::Vector2f viewSize(winSize.x / cols, winSize.y / rows);
+    sf::Vector2f viewportSize(1.f / cols, 1.f / rows);
+
+    for (int i = 0; i < playerCount; i++) {
+        sf::FloatRect viewport(
+            {(i % cols) * viewportSize.x, (i / cols) * viewportSize.y},
+            viewportSize);
+
+        cameras[i].view.setSize(viewSize);
+        cameras[i].view.zoom(cameras[i].zoomScale);
+        cameras[i].view.setViewport(viewport);        
+
+        cameras[i].uiView.setSize(viewSize);
+        cameras[i].uiView.setCenter(viewSize / 2.f);
+        cameras[i].uiView.setViewport(viewport);
+    }
+}
 
 void Game::moveCamera(int cameraID, Vector2d offset) {
     cameras[cameraID].position -= offset;
@@ -669,7 +754,7 @@ void Game::centerCamera(int playerID, float lerpScale) {
     cameras[playerID].position = players[playerID]->position - (cameras[playerID].velocity*(double)dt);
     playerVelocity = players[playerID]->velocity - globalVelocity;
     cameraVelocity = cameras[playerID].velocity - globalVelocity;
-    relativeVelocity = static_cast<Vector2f>(cameraVelocity - playerVelocity);
+    //relativeVelocity = static_cast<Vector2f>(cameraVelocity - playerVelocity);
     std::cout << playerID << ": " << relativeVelocity.x <<  ", " << relativeVelocity.y << std::endl;
     cameras[playerID].view.setCenter((Vector2f)cameras[playerID].position);
     if (players[playerID]->getState() == State::GROUNDED) {

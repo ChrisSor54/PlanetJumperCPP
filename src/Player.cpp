@@ -2,31 +2,32 @@
 
 using pl = Player;
 
-sf::Texture pl::spriteSheet;
+sf::Texture pl::spritesheet;
 sf::Texture pl::spriteMask;
-bool pl::spriteSheetLoaded = false;
+bool pl::spritesheetLoaded = false;
 
-pl::Player(sf::Color playerColor) 
+pl::Player(int ID, sf::Color playerColor) 
     : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, sf::degrees(0), PLAYER_FRICTION, MatterState::SOLID), sprite(sf::Sprite(spriteTexture.getTexture())) {
+    playerID = ID;
     elasticity = PLAYER_ELASTICITY;
     id -= 4;
 
-    position += Vector2d(id*2*COLLISION_RADIUS, 0);
+    position += Vector2d(playerID*2*COLLISION_RADIUS, 0);
     // Initialize textures and sprite
-    if (!spriteSheetLoaded) {
-        if (!spriteSheet.loadFromFile("assets/astronaut.png")) {
+    if (!spritesheetLoaded) {
+        if (!spritesheet.loadFromFile("assets/astronaut.png")) {
             throw std::invalid_argument("Bad player texture");
         }
         
         if (!spriteMask.loadFromFile("assets/astronaut_body_mask.png")) {
             throw std::invalid_argument("Bad player mask");
         }
-        pl::spriteSheetLoaded = true;
+        pl::spritesheetLoaded = true;
     }
-    spriteTexture = sf::RenderTexture(spriteSheet.getSize());
+    spriteTexture = sf::RenderTexture(spritesheet.getSize());
     spriteTexture.clear(sf::Color::Transparent);
 
-    sprite.setTexture(spriteSheet, true);
+    sprite.setTexture(spritesheet, true);
     sprite.setColor(sf::Color::White);
     spriteTexture.draw(sprite);
 

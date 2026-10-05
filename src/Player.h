@@ -62,6 +62,7 @@ class Player : public PhysObj {
         // Properties
 
         enum State state;
+        int playerID;
         double speed = MOVE_SPEED;
         sf::RenderTexture spriteTexture;
         sf::Sprite sprite;
@@ -70,7 +71,7 @@ class Player : public PhysObj {
         std::array<SmokeParticle, MAX_SMOKE> smokeArray;
         
         // Methods
-        Player(sf::Color playerColor);
+        Player(int playerID, sf::Color playerColor);
 
         State getState();
         void updateGravity(PhysObj& other, double dt);
@@ -137,8 +138,8 @@ class Player : public PhysObj {
         Vector2d getCollisionImpulse(PhysicsObject& other, double sqrRestThreshold);
         void updateAnimation(float dt);
 
-        static sf::Texture spriteSheet;
+        static sf::Texture spritesheet;
         static sf::Texture spriteMask;
-        static bool spriteSheetLoaded;
+        static bool spritesheetLoaded;
 
 };
