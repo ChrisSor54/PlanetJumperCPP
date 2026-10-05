@@ -221,14 +221,13 @@ Body* Game::addSatellite(
 }
 
 
-void Game::teleportPlayerTo(int playerID, PhysObj* target) {
-    std::unique_ptr<Player>& player = players[playerID];
+void Game::teleportPlayerTo(Player* player, PhysObj* target) {
     Vector2d offset(0, -target->radius-GROUNDED_MARGIN);
     player->position = target->position + offset;
     player->velocity = target->velocity;
     player->rotation = offset.angle() + sf::degrees(90);
     player->fixOverlap(*target);
-    cameras[playerID].position = player->position;
+    cameras[player->id].position = player->position;
 }
 
 #pragma endregion
@@ -319,11 +318,15 @@ void Game::updateInputStates() {
 
 void Game::handleInput(double dt) {
     if (!inputPressed(IA::DEBUG)) {
-        if (inputReleased(IA::ZoomIn)) {
-            for (int i=0; i<cameras.size();i++) zoomCamera(i, ZOOM_SPEED);
-        } else if (inputReleased(IA::ZoomOut)) {
-            for (int i=0; i<cameras.size();i++) zoomCamera(i, 1/ZOOM_SPEED);
+        for (auto& player : players) {
+            if (inputReleased(player->id, IA::ZoomIn)) {
+                zoomCamera(player->id, ZOOM_SPEED);
+            } else if (inputReleased(player->id, IA::ZoomOut)) {
+                zoomCamera(player->id, 1/ZOOM_SPEED);
+            }
         }
+
+
         if (inputReleased(IA::SpeedUp)) {
             timeScale *= 2.0;
         } else if (inputReleased(IA::SpeedDown)) {

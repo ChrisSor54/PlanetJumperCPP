@@ -96,7 +96,7 @@ class Game {
             BodyTexture satTexture
         );
 
-        void teleportPlayerTo(int playerID, PhysicsObject* target);
+        void teleportPlayerTo(Player* player, PhysicsObject* target);
         
     private:
         // Members

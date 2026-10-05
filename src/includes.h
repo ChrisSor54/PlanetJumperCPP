@@ -68,8 +68,10 @@ struct InputManager {
             {InputAction::Right,                    {sfKey::D}},
             {InputAction::Jump,                     {sfKey::Space}},
             {InputAction::Walk,                     {sfKey::LShift}},
-            {InputAction::RotateR,                  {sfKey::E}},
-            {InputAction::RotateL,                  {sfKey::Q}},
+            {InputAction::RotateR,                  {}},
+            {InputAction::RotateL,                  {}},
+            {InputAction::ZoomIn,                   {sfKey::E}},
+            {InputAction::ZoomOut,                  {sfKey::Q}},
             }, {}, Vector2f(0,0)
         }},
         {1, {{
@@ -79,8 +81,10 @@ struct InputManager {
             {InputAction::Right,                    {sfKey::Right}},
             {InputAction::Jump,                     {sfKey::RControl}},
             {InputAction::Walk,                     {sfKey::RShift}},
-            {InputAction::RotateR,                  {sfKey::E}},
-            {InputAction::RotateL,                  {sfKey::Q}},
+            {InputAction::RotateR,                  {}},
+            {InputAction::RotateL,                  {}},
+            {InputAction::ZoomIn,                   {sfKey::PageDown}},
+            {InputAction::ZoomOut,                  {sfKey::PageUp}},
             }, {}, Vector2f(0,0)
         }},
         {2, {{
@@ -92,6 +96,8 @@ struct InputManager {
             {InputAction::Walk,                     {sfKey::LShift}},
             {InputAction::RotateR,                  {sfKey::E}},
             {InputAction::RotateL,                  {sfKey::Q}},
+            {InputAction::ZoomIn,                   {sfKey::PageDown}},
+            {InputAction::ZoomOut,                  {sfKey::PageUp}},
             }, {}, Vector2f(0,0)
         }},
         {3, {{
@@ -103,13 +109,13 @@ struct InputManager {
             {InputAction::Walk,                     {sfKey::LShift}},
             {InputAction::RotateR,                  {sfKey::E}},
             {InputAction::RotateL,                  {sfKey::Q}},
+            {InputAction::ZoomIn,                   {sfKey::PageDown}},
+            {InputAction::ZoomOut,                  {sfKey::PageUp}},
             }, {}, Vector2f(0,0)
         }}
     };
 
     InputMap globalInputs = {{
-        {InputAction::ZoomIn,                   {sfKey::PageDown}},
-        {InputAction::ZoomOut,                  {sfKey::PageUp}},
         {InputAction::SpeedUp,                  {sfKey::Period}},
         {InputAction::SpeedDown,                {sfKey::Comma}},
         {InputAction::ResetTimescale,           {sfKey::Slash}},

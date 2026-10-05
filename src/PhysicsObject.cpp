@@ -11,7 +11,7 @@ PhysObj::PhysicsObject(Vector2d position, Vector2d velocity, double mass, double
     
     surfaceFriction = std::clamp(surfaceFriction, 0.f, 1.f); // Clamp friction
     static int numBodies = 0;
-    this->id = numBodies;
+    this->id = numBodies + 4;
     numBodies++;
     this->velocityBuffer = Vector2d(0, 0);
     hasCollided = false;

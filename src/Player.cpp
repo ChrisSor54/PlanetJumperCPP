@@ -9,6 +9,7 @@ bool pl::spriteSheetLoaded = false;
 pl::Player(sf::Color playerColor) 
     : PhysObj(Vector2d(0, 0), Vector2d(0,0), PLAYER_MASS, COLLISION_RADIUS, sf::degrees(0), PLAYER_FRICTION, MatterState::SOLID), sprite(sf::Sprite(spriteTexture.getTexture())) {
     elasticity = PLAYER_ELASTICITY;
+    id -= 4;
 
     position += Vector2d(id*2*COLLISION_RADIUS, 0);
     // Initialize textures and sprite
