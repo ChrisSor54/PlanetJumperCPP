@@ -132,6 +132,8 @@ class Game {
         static sf::Texture bigFontSpritesheet;
         static sf::Texture smallFontSpritesheet;
         static bool fontSpritesheetLoaded;
+
+        sf::View globalUIView;
         
 
         // Debug flags

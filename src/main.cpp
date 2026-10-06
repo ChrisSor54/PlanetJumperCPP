@@ -185,7 +185,7 @@ int main() {
 
     Player* player1 = game.addPlayer(sf::Color(255, 255, 255));
     game.teleportPlayerTo(player1, planetA);
-    //game.setDefaultHomePlanet(planetA);
+    game.setDefaultHomePlanet(planetA);
     // game.teleportPlayerTo(player2, moonA1);
     // game.teleportPlayerTo(player3, planetB);
     // game.teleportPlayerTo(player4, moonE1);

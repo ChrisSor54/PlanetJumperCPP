@@ -624,7 +624,20 @@ void Game::draw(sf::RenderWindow& window) {
         players[i]->draw(window);
         drawUI(window, i);
     }
-    
+    if (playerCount < 4) {
+        window.setView(globalUIView);
+        Vector2f promptPos;
+        switch(playerCount) {
+            case 1:
+            case 2:
+                promptPos = {static_cast<float>((globalUIView.getSize().x-(18.0*16.0))), 0.f};
+                break;
+            case 3:
+                promptPos = {static_cast<float>((globalUIView.getSize().x-(18.0*8.0))*.75), static_cast<float>((globalUIView.getSize().y-8.0)*.75)};
+                break;
+        }
+        drawString(window, "Add Player:    +\nRemove Player: -", promptPos, {2.0, 2.0}, 0.25, false);
+    }
     window.display();
 }
 
@@ -734,6 +747,8 @@ void Game::updateViews() {
         cameras[i].uiView.setCenter(viewSize / 2.f);
         cameras[i].uiView.setViewport(viewport);
     }
+    globalUIView.setSize(winSize);
+    globalUIView.setCenter({winSize.x/2.0, winSize.y/2.0});
 }
 
 void Game::moveCamera(int cameraID, Vector2d offset) {
