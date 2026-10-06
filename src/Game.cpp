@@ -48,9 +48,9 @@ void Game::run() {
         }
     }
     updateViews();
-    if (defaultHomePlanet == nullptr) {
-        defaultHomePlanet = static_cast<Body*>(objects[0].get());
-    }
+    // if (defaultHomePlanet == nullptr) {
+    //     defaultHomePlanet = static_cast<Body*>(objects[0].get());
+    // }
 
     while (window.isOpen()) {
         dt = clock.restart().asSeconds(); // get deltatime
@@ -230,7 +230,6 @@ void Game::teleportPlayerTo(Player* player, PhysObj* target) {
     player->rotation = offset.angle() + sf::degrees(90);
     //player->fixOverlap(*target);
     cameras[player->playerID].position = player->position;
-    std::cout << "Teleporting: " << player->position.x - target->position.x << ", " << player->position.y - target->position.y << std::endl;
     updateViews();
 }
 
@@ -343,8 +342,12 @@ void Game::handleInput(double dt) {
                 int r = (rand()%156) + 100;
                 int g = (rand()%156) + 100;
                 int b = (rand()%156) + 100;
-                std::cout << defaultHomePlanet->position.x << " " << defaultHomePlanet->position.y << std::endl;
-                Player* player = addPlayer(sf::Color(r,g,b), defaultHomePlanet);
+                if (defaultHomePlanet == nullptr) {
+                    Player* player = addPlayer(sf::Color(r,g,b));
+                    player->position = players[0]->position;
+                } else {
+                    Player* player = addPlayer(sf::Color(r,g,b), defaultHomePlanet);
+                }
             }
         }
         if (inputReleased(IA::RemovePlayer)) {
@@ -771,7 +774,6 @@ void Game::centerCamera(int playerID, float lerpScale) {
     playerVelocity = players[playerID]->velocity - globalVelocity;
     cameraVelocity = cameras[playerID].velocity - globalVelocity;
     //relativeVelocity = static_cast<Vector2f>(cameraVelocity - playerVelocity);
-    std::cout << playerID << ": " << relativeVelocity.x <<  ", " << relativeVelocity.y << std::endl;
     cameras[playerID].view.setCenter((Vector2f)cameras[playerID].position);
     if (players[playerID]->getState() == State::GROUNDED) {
         rotateCamera(playerID, players[playerID]->rotation, CAMERA_ROTATE_SPEED);
