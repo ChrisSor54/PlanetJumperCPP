@@ -39,7 +39,6 @@ BodyTexture gasGiantTexture = {
 int main() {
     Game game(1280, 720);
 
-    Player* player1 = game.addPlayer(sf::Color(255, 255, 255));
     //Player* player2 = game.addPlayer(sf::Color(234, 120, 245));
     //Player* player3 = game.addPlayer(sf::Color(0, 0, 255));
 
@@ -184,8 +183,9 @@ int main() {
     );
 
 
-
+    Player* player1 = game.addPlayer(sf::Color(255, 255, 255));
     game.teleportPlayerTo(player1, planetA);
+    game.setDefaultHomePlanet(planetA);
     // game.teleportPlayerTo(player2, moonA1);
     // game.teleportPlayerTo(player3, planetB);
     // game.teleportPlayerTo(player4, moonE1);

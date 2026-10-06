@@ -20,10 +20,6 @@ Game::Game(unsigned int window_w, unsigned int window_h)
     for (int i=0; i<(int)InputAction::COUNT; i++) {
         inputManager.globalInputs.inputStates[(InputAction) i] = InputState{false, false};
     }
-
-    if (!fontSpritesheet.loadFromFile("assets/SpaceFont_big.png")) {
-        throw std::invalid_argument("Bad text character texture");
-    }
 }
 
 void Game::run() {
@@ -52,15 +48,9 @@ void Game::run() {
         }
     }
     updateViews();
-
-    // int cols = (playerCount >= 2) ? 2 : 1;
-    // int rows = (playerCount > 2) ? 2 : 1;
-    // sf::Vector2u windowSize = window.getSize();
-    // sf::Vector2f viewSize(windowSize.x/cols, windowSize.y/rows);
-    // for (int i=0; i<playerCount;i++) {
-    //     cameras[i].view.setSize(viewSize);
-    //     uiViews[i].setSize(viewSize);
-    // }
+    if (defaultHomePlanet == nullptr) {
+        defaultHomePlanet = static_cast<Body*>(objects[0].get());
+    }
 
     while (window.isOpen()) {
         dt = clock.restart().asSeconds(); // get deltatime
@@ -75,6 +65,15 @@ void Game::run() {
     }
 }
 
+void Game::setDefaultHomePlanet(Body* homePlanet) {
+    for (auto& body : objects) {
+        if (body.get() == homePlanet) {
+            defaultHomePlanet = homePlanet;
+            return;
+        }
+    }
+}
+
 #pragma endregion
 
 // Spawning ----------------------------------------------------------------------------------------
@@ -84,41 +83,37 @@ void Game::run() {
 Player* Game::addPlayer(sf::Color playerColor) {
     int playerID = playerCount;
     playerCount += 1;
-    // Vector2f windowSize = static_cast<Vector2f>(window.getSize());
-
-    // int cols = (playerCount >= 2) ? 2 : 1;
-    // int rows = (playerCount > 2) ? 2 : 1;
-    // sf::Vector2f viewSize(windowSize.x / cols, windowSize.y / rows);
-    // sf::Vector2f viewportSize(1.f / cols, 1.f / rows);
     cameras[playerID] = Camera{
         sf::View(),
         sf::View(),
         Vector2d(0,0),
         Vector2d(0,0)
     };
-    // for (int i=0; i<playerCount;i++) {
-
-    //     cameras[i].view.setSize(viewportSize);
-    //     uiViews[i].setSize(viewportSize);
-
-    //     int col = i%cols;
-    //     int row = i/cols;
-        
-    //     cameras[i].view.setViewport(sf::FloatRect{
-    //         Vector2f(col*viewportSize.x, row*viewportSize.y),
-    //         viewportSize
-    //     });
-    //     // std::cout << viewSize.x << ", " << viewSize.y << std::endl;
-    //     // cameraView.setCenter(viewSize/2.f);
-    //     // uiView.setCenter(viewSize/2.f);
-    // }
     players.push_back(std::make_unique<Player>(playerID, playerColor));
     updateViews();
     return static_cast<Player*>(players.back().get());
 }
 
-void Game::removePlayer(int playerID) {
+Player* Game::addPlayer(sf::Color playerColor, Body* homePlanet) {
+    Player* player = addPlayer(playerColor);
+    teleportPlayerTo(player, homePlanet);
+    return player;
+}
 
+void Game::removePlayer(int playerID) {
+    if (playerCount <= 1) {
+        return;
+    }
+    for (int i=0; i < players.size(); i++) {
+        int id = players[i]->playerID;
+        if (id == playerID) {
+            players.erase(players.begin() + i);
+            cameras.erase(playerID);
+            playerCount -= 1;
+            updateViews();
+            return;
+        }
+    }
 }
 
 Body* Game::addBody(
@@ -229,12 +224,14 @@ Body* Game::addSatellite(
 
 
 void Game::teleportPlayerTo(Player* player, PhysObj* target) {
-    Vector2d offset(0, -target->radius-GROUNDED_MARGIN);
-    player->position = target->position + offset;
+    Vector2d offset(0, -(target->radius+GROUNDED_MARGIN));
+    player->position = target->position + offset.rotatedBy(target->rotation);
     player->velocity = target->velocity;
     player->rotation = offset.angle() + sf::degrees(90);
-    player->fixOverlap(*target);
-    cameras[player->id].position = player->position;
+    //player->fixOverlap(*target);
+    cameras[player->playerID].position = player->position;
+    std::cout << "Teleporting: " << player->position.x - target->position.x << ", " << player->position.y - target->position.y << std::endl;
+    updateViews();
 }
 
 #pragma endregion
@@ -250,7 +247,8 @@ void Game::updateInputStates() {
         state = InputState{false, false};
     }
     inputManager.globalInputs.directionalInput = Vector2f(0,0);
-    for (int i=0; i<playerCount; i++) {
+    for (auto& player : players) {
+        int i = player->playerID;
         for (auto& [input, state] : inputManager.playerInputs[i].inputStates) {
             state = InputState{false, false};
         }
@@ -262,15 +260,6 @@ void Game::updateInputStates() {
             window.close();
 
         else if (const auto* resized = event->getIf<sf::Event::Resized>()) {
-            // Vector2f newSize((float)resized->size.x, (float)resized->size.y);
-            // int cols = (playerCount >= 2) ? 2 : 1;
-            // int rows = (playerCount > 2) ? 2 : 1;
-            // sf::Vector2f viewSize(newSize.x / cols, newSize.y / rows);
-            // for (int i=0; i<playerCount;i++) {
-            //     cameras[i].view.setSize(viewSize);
-            //     uiViews[i].setSize(viewSize);
-            //     cameras[i].view.zoom(cameras[i].zoomScale);
-            // }
             updateViews();
         }
 
@@ -282,7 +271,8 @@ void Game::updateInputStates() {
                             inputManager.globalInputs.inputStates[inputAction].released = true;
                         
                 }
-                for (int i=0; i<playerCount; i++) {
+                for (auto& player : players) {
+                    int i = player->playerID;
                     for (auto& [inputAction, keybinds] : inputManager.playerInputs[i].bindings) {
                         for (auto& key : keybinds)
                             if (key == keyReleased->scancode)
@@ -298,8 +288,9 @@ void Game::updateInputStates() {
         for (auto& key : inputManager.globalInputs.bindings[inputAction])
             if (sf::Keyboard::isKeyPressed(key)) state.pressed = true;
     }
-    for (int i=0; i<playerCount; i++) {
-        if (players[i] == nullptr) {continue;}
+    for (auto& player : players) {
+        if (player == nullptr) {continue;}
+        int i = player->playerID;
         InputMap& playerInput = inputManager.playerInputs[i];
         for (auto& [inputAction, state] : playerInput.inputStates) {
             for (auto& key : playerInput.bindings[inputAction])
@@ -348,7 +339,19 @@ void Game::handleInput(double dt) {
             copyRotation = !copyRotation;
         }
         if (inputReleased(IA::AddPlayer)) {
-            queueAddPlayer = true;
+            if (playerCount < 4) {
+                int r = (rand()%156) + 100;
+                int g = (rand()%156) + 100;
+                int b = (rand()%156) + 100;
+                std::cout << defaultHomePlanet->position.x << " " << defaultHomePlanet->position.y << std::endl;
+                Player* player = addPlayer(sf::Color(r,g,b), defaultHomePlanet);
+            }
+        }
+        if (inputReleased(IA::RemovePlayer)) {
+            int playerID = players.back()->playerID;
+            if (playerID != 0) {
+                removePlayer(playerID);
+            }
         }
         bool playerAlive = false;
         for (auto& player : players) {
@@ -536,20 +539,6 @@ void Game::update(double dt) {
             player->updateOrbitalPath(VISUAL_ORBIT_RESOLUTION_SCALE);
         }
     }
-
-    if (queueAddPlayer) {
-        if (playerCount <= 4) {
-            int r = (playerCount * 100)%255;
-            int g = (playerCount * 50)%255;
-            int b = (playerCount * 75)%255;
-            Player* player = addPlayer(sf::Color(r,g,b,1));
-            player->position = Vector2d(0,0);
-        }
-        queueAddPlayer = false;
-    } else if (queueRemovePlayer) {
-        int playerID = playerCount - 1;
-        queueRemovePlayer = false;
-    }
 }
 
 void Game::updateRelativePositions(Vector2d newOrigin) {
@@ -599,7 +588,8 @@ void Game::updateRelativeVelocities(Vector2d newReferenceFrame) {
 
 void Game::draw(sf::RenderWindow& window) {
     window.clear();
-    for (int i=0; i<cameras.size(); i++) {
+    for (auto& player : players) {
+        int i = player->playerID;
         window.setView(cameras[i].view);
         drawBackground(i, window, dt);
         //cameraViews[player->id].setCenter(static_cast<Vector2f>(player->position));
@@ -613,9 +603,10 @@ void Game::draw(sf::RenderWindow& window) {
                     obj->drawOrbitalPath(window);
                 }
             }
-            for (auto& player : players) {
-                player->drawOrbitalPath(window);
-            }
+            //player->drawOrbitalPath(window);
+            // for (auto& player : players) {
+            //     player->drawOrbitalPath(window);
+            // }
         }
         
         for (auto& obj : objects) {
@@ -628,10 +619,7 @@ void Game::draw(sf::RenderWindow& window) {
             }
         }
         players[i]->draw(window);
-        window.setView(cameras[i].uiView);
-            // Draw UI
-        drawString(window, sf::String("TEST"), {0.f,0.f});
-
+        drawUI(window, i);
     }
     
     window.display();
@@ -647,41 +635,71 @@ void Game::drawBackground(int cameraID, sf::RenderWindow& window, double dt) {
     int windowM = std::max(windowX, windowY);
     int offsetX = camera.bgOffset.x;
     int offsetY = camera.bgOffset.y;
-    bgSprite.setTextureRect(sf::IntRect({offsetX, offsetY}, {windowX, windowY}));
+    bgSprite.setTextureRect(sf::IntRect({offsetX, offsetY}, {windowM, windowM}));
     
-    bgSprite.setOrigin(sf::Vector2f(windowX/2, windowY/2));
+    bgSprite.setOrigin(sf::Vector2f(windowM/2, windowM/2));
     bgSprite.setPosition(static_cast<sf::Vector2f>(camera.position));
     bgSprite.setScale(sf::Vector2f(1.0, 1.0)*camera.zoomScale);
     window.draw(bgSprite);
 }
 
-sf::Texture Game::fontSpritesheet;
+
+void Game::drawUI(sf::RenderWindow& window, int playerID) {
+    window.setView(cameras[playerID].uiView);
+    auto& bindings = inputManager.playerInputs[playerID].bindings;
+
+    auto keyName = [&](IA action) -> std::string {
+        auto it = bindings.find(action);
+        if (it == bindings.end() || it->second.empty()) return "?";
+        std::string s = sf::Keyboard::getDescription(it->second[0]).toAnsiString();
+        for (char& c : s) c = std::toupper(static_cast<unsigned char>(c));
+        return s;
+    };
+
+    std::string moveInputs = fmt::format("{}/{}/{}/{}",
+        keyName(IA::Up), keyName(IA::Left), keyName(IA::Down), keyName(IA::Right));
+    std::string helpText = fmt::format("MOVE: {}\nCHARGE JUMP: {}\nDECELERATE/WALK: {}\nZOOM IN/OUT: {}/{}",
+        moveInputs, keyName(IA::Jump), keyName(IA::Walk), keyName(IA::ZoomIn), keyName(IA::ZoomOut));
+
+    float xScale = (playerCount > 2) ? 0.75 : 1.0;
+    // int rows = (playerCount == 2) ? 2 : (playerCount+1)/2;
+    // float yScale = (rows >= 2) ? (1.f/(float)rows) : 1.f;
+    float yScale = xScale;
+    drawString(window, helpText, {0.f, 0.f}, {static_cast<float>(2.0*xScale), static_cast<float>(2.0*yScale)}, 0.25, false);
+}
+
+sf::Texture Game::bigFontSpritesheet;
+sf::Texture Game::smallFontSpritesheet;
 bool Game::fontSpritesheetLoaded = false;
 
-void Game::drawString(sf::RenderTarget& target, sf::String string, sf::Vector2f position) {
+void Game::drawString(sf::RenderTarget& target, sf::String string, sf::Vector2f position, sf::Vector2f scale, float linePadding, bool useBigFont) {
     if (!fontSpritesheetLoaded) {
-        if (!fontSpritesheet.loadFromFile("assets/SpaceFont_big.png")) {
-            throw std::invalid_argument("Bad font texture");
+        if (!bigFontSpritesheet.loadFromFile("assets/SpaceFont_big.png")) {
+            throw std::invalid_argument("Bad large font texture");
+        }
+        if (!smallFontSpritesheet.loadFromFile("assets/SpaceFont_small.png")) {
+            throw std::invalid_argument("Bad small font texture");
         }
         fontSpritesheetLoaded = true;
     }
+    sf::Texture fontTexture = (useBigFont) ? bigFontSpritesheet : smallFontSpritesheet;
+    sf::Vector2i cellSize = (useBigFont) ? sf::Vector2i(16,16) : sf::Vector2i(8,8);
 
-    sf::Vector2i cellSize = sf::Vector2i(16,16);
-
-    sf::Sprite charSprite = sf::Sprite(fontSpritesheet);
+    sf::Sprite charSprite = sf::Sprite(fontTexture);
     float x = position.x;
     // charSprite.setPosition(position);
     // target.draw(charSprite);
 
     for (unsigned char c : string) {
-        if (c == '\n') { x = position.x; position.y += cellSize.y; continue; }
+        if (c == '\n') { x = position.x; position.y += cellSize.y*scale.y + linePadding; continue; }
 
-        int i = c-32;  // atlas starts at ASCII 32 (space)
+        int i = std::toupper(c)-32;  // atlas starts at ASCII 32 (space)
         charSprite.setTextureRect(sf::IntRect({(i % 13) * cellSize.x, (i / 13) * cellSize.y}, cellSize));
         charSprite.setPosition({x, position.y});
+        charSprite.setScale(scale);
         target.draw(charSprite);
 
-        x += cellSize.x;
+        x += cellSize.x*scale.x;
     }
 }
 
@@ -694,15 +712,13 @@ void Game::drawString(sf::RenderTarget& target, sf::String string, sf::Vector2f 
 void Game::updateViews() {
     sf::Vector2f winSize(window.getSize());
     int cols = (playerCount > 2) ? 2 : 1;
-    int rows = (playerCount+1)/2;
-    if (playerCount == 2) {
-        rows = 2;
-    }
+    int rows = (playerCount == 2) ? 2 : (playerCount+1)/2;
 
     sf::Vector2f viewSize(winSize.x / cols, winSize.y / rows);
     sf::Vector2f viewportSize(1.f / cols, 1.f / rows);
 
-    for (int i = 0; i < playerCount; i++) {
+    for (auto& player : players) {
+        int i = player->playerID;
         sf::FloatRect viewport(
             {(i % cols) * viewportSize.x, (i / cols) * viewportSize.y},
             viewportSize);

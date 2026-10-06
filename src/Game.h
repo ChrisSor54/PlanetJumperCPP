@@ -44,6 +44,7 @@ class Game {
         void run();
 
         Player* addPlayer(sf::Color color);
+        Player* addPlayer(sf::Color color, Body* homePlanet);
         void removePlayer(int playerID);
 
         Body* addBody(
@@ -99,7 +100,8 @@ class Game {
         );
 
         void teleportPlayerTo(Player* player, PhysicsObject* target);
-        void drawString(sf::RenderTarget& target, sf::String string, sf::Vector2f pos);
+        void drawString(sf::RenderTarget& target, sf::String string, sf::Vector2f pos, sf::Vector2f scale, float linePadding, bool useBigFont);
+        void setDefaultHomePlanet(Body* homePlanet);
     private:
         // Members
         InputManager inputManager;
@@ -111,8 +113,7 @@ class Game {
         float timeScale = 1.0;
         float dt;
 
-        bool queueAddPlayer = false;
-        bool queueRemovePlayer = false;
+        Body* defaultHomePlanet = nullptr;
 
 
         std::vector<std::unique_ptr<Player>> players;
@@ -128,13 +129,13 @@ class Game {
         sf::Texture bgTexture;
         sf::Sprite bgSprite;
 
-        static sf::Texture fontSpritesheet;
+        static sf::Texture bigFontSpritesheet;
+        static sf::Texture smallFontSpritesheet;
         static bool fontSpritesheetLoaded;
-        std::vector<sf::Sprite> stringSprites;
         
 
         // Debug flags
-        bool drawVelocities = false;
+        bool drawVelocities = true;
         bool useParentAsReference = true;
 
         // Methods
@@ -167,5 +168,5 @@ class Game {
         // Drawing
         void draw(sf::RenderWindow& window);
         void drawBackground(int cameraID, sf::RenderWindow& window, double dt);
-        void drawUI(sf::RenderWindow& window);
+        void drawUI(sf::RenderWindow& window, int playerID);
 };

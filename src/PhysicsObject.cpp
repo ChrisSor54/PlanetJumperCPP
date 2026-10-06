@@ -11,7 +11,7 @@ PhysObj::PhysicsObject(Vector2d position, Vector2d velocity, double mass, double
     
     surfaceFriction = std::clamp(surfaceFriction, 0.f, 1.f); // Clamp friction
     static int numBodies = 0;
-    this->id = numBodies + 4;
+    this->id = numBodies;
     numBodies++;
     this->velocityBuffer = Vector2d(0, 0);
     hasCollided = false;
@@ -96,7 +96,7 @@ void PhysObj::fixOverlap(PhysObj& other, bool force) {
     double surfaceDist = getSurfaceDistance(other);
     if (surfaceDist <= GROUNDED_MARGIN || force) {
         //std::cout << "Overlap" << std::endl;
-        if ((position - other.position).lengthSquared() == 0) {
+        if ((position - other.position).lengthSquared() == 0.0) {
             position.y -= 1.0;
         }
         Vector2d normal = (position - other.position).normalized();
@@ -143,6 +143,7 @@ bool PhysObj::checkCollision(PhysObj& other, double dt) {
     if ((relVelocity*dt).lengthSquared() > pow(radius + other.radius, 2)) {
         resolution = relVelocity.length()*dt/(radius + other.radius);
     }
+    if (!std::isfinite(resolution)) resolution = 1.0;
     return checkCollision(other, dt, resolution);
 }
 
@@ -308,6 +309,7 @@ void PhysicsObject::updateOrbitalPath(int resolutionScale) {
             period = 5.0; // Arbitrary path length for objects not in orbit
         }
     }
+    if (!std::isfinite(period) || period <= 0.0) period = 5.0;
     updateOrbitalPath(period, resolutionScale);
 }
 

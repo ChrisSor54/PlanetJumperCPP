@@ -4,7 +4,9 @@
 #include <cmath>
 #include <algorithm>
 #include <vector>
-
+#include <cstdlib>
+#define FMT_HEADER_ONLY
+#include <fmt/format.h>
 
 // Includes are used by multiple files
 
