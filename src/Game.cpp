@@ -748,7 +748,7 @@ void Game::updateViews() {
         cameras[i].uiView.setViewport(viewport);
     }
     globalUIView.setSize(winSize);
-    globalUIView.setCenter({winSize.x/2.0, winSize.y/2.0});
+    globalUIView.setCenter({static_cast<float>(winSize.x/2.0), static_cast<float>(winSize.y/2.0)});
 }
 
 void Game::moveCamera(int cameraID, Vector2d offset) {
