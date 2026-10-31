@@ -2,12 +2,13 @@
 #include <SFML/Graphics.hpp>
 #include "input_bindings.h"
 #include <iostream>
+#include <fstream>
 #include <cmath>
 #include <algorithm>
 #include <vector>
 #include <cstdlib>
-#define FMT_HEADER_ONLY
-#include <fmt/format.h>
+#include <format>
+#include <map>
 
 // Includes are used by multiple files
 
@@ -32,4 +33,5 @@ struct BodyTexture {
     int height = 32;
     bool repeat = true;
 };
+
 

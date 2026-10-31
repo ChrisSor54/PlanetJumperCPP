@@ -240,6 +240,43 @@ void Game::teleportPlayerTo(Player* player, PhysObj* target) {
 
 using IA = InputAction;
 
+// using IniData = std::map<std::string, std::map<std::string, std::string>>;
+
+// static std::string trim(const std::string& s) {
+//     auto b = s.find_first_not_of(" \t\r\n");
+//     if (b == std::string::npos) return "";
+//     auto e = s.find_last_not_of(" \t\r\n");
+//     return s.substr(b, e - b + 1);
+// }
+
+// IniData loadIni(const std::string& path) {
+//     IniData data;
+//     std::ifstream file(path);
+//     std::string line, section;
+
+//     while (std::getline(file, line)) {
+//         line = trim(line);
+//         if (line.empty() || line[0] == ';' || line[0] == '#') continue;  // comment/blank
+
+//         if (line.front() == '[' && line.back() == ']') {                 // [Section]
+//             section = trim(line.substr(1, line.size() - 2));
+//             continue;
+//         }
+
+//         auto eq = line.find('=');
+//         if (eq == std::string::npos) continue;                           // malformed line
+//         data[section][trim(line.substr(0, eq))] = trim(line.substr(eq + 1));
+//     }
+//     return data;
+// }
+
+// void Game::loadInputMappings() {
+//     IniData ini = loadIni("input_mappings.ini");
+
+
+// }
+
+
 void Game::updateInputStates() {
     // Reset input states
     for (auto& [input, state] : inputManager.globalInputs.inputStates) {
@@ -319,9 +356,9 @@ void Game::handleInput(double dt) {
     if (!inputPressed(IA::DEBUG)) {
         for (auto& player : players) {
             if (inputReleased(player->playerID, IA::ZoomIn)) {
-                zoomCamera(player->playerID, ZOOM_SPEED);
-            } else if (inputReleased(player->playerID, IA::ZoomOut)) {
                 zoomCamera(player->playerID, 1/ZOOM_SPEED);
+            } else if (inputReleased(player->playerID, IA::ZoomOut)) {
+                zoomCamera(player->playerID, ZOOM_SPEED);
             }
         }
 
@@ -630,7 +667,7 @@ void Game::draw(sf::RenderWindow& window) {
         switch(playerCount) {
             case 1:
             case 2:
-                promptPos = {static_cast<float>((globalUIView.getSize().x-(18.0*16.0))), 0.f};
+                promptPos = {static_cast<float>((globalUIView.getSize().x-(18.0*16.0)-HUD_PADDING)), HUD_PADDING};
                 break;
             case 3:
                 promptPos = {static_cast<float>((globalUIView.getSize().x-(18.0*8.0))*.75), static_cast<float>((globalUIView.getSize().y-8.0)*.75)};
@@ -672,16 +709,15 @@ void Game::drawUI(sf::RenderWindow& window, int playerID) {
         return s;
     };
 
-    std::string moveInputs = fmt::format("{}/{}/{}/{}",
-        keyName(IA::Up), keyName(IA::Left), keyName(IA::Down), keyName(IA::Right));
-    std::string helpText = fmt::format("MOVE: {}\nCHARGE JUMP: {}\nDECELERATE/WALK: {}\nZOOM IN/OUT: {}/{}",
-        moveInputs, keyName(IA::Jump), keyName(IA::Walk), keyName(IA::ZoomIn), keyName(IA::ZoomOut));
+    std::string moveInputs = std::format("{}/{}/{}/{}",keyName(IA::Up),keyName(IA::Left),keyName(IA::Down),keyName(IA::Right));
+    std::string helpText = std::format("MOVE: {}\nCHARGE JUMP: {}\nDECELERATE/WALK: {}\nZOOM IN/OUT: {}/{}", moveInputs,keyName(IA::Jump),keyName(IA::Walk),keyName(IA::ZoomIn),keyName(IA::ZoomOut));
+
 
     float xScale = (playerCount > 2) ? 0.75 : 1.0;
     // int rows = (playerCount == 2) ? 2 : (playerCount+1)/2;
     // float yScale = (rows >= 2) ? (1.f/(float)rows) : 1.f;
     float yScale = xScale;
-    drawString(window, helpText, {0.f, 0.f}, {static_cast<float>(2.0*xScale), static_cast<float>(2.0*yScale)}, 0.25, false);
+    drawString(window, helpText, {HUD_PADDING, HUD_PADDING}, {static_cast<float>(2.0*xScale), static_cast<float>(2.0*yScale)}, 0.25, false);
 }
 
 sf::Texture Game::bigFontSpritesheet;

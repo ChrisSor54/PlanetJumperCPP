@@ -28,6 +28,8 @@ const double ZOOM_SPEED = 1.5;
 const float MIN_ZOOM_SCALE = 1/(3*ZOOM_SPEED);
 const double BACKGROUND_SCROLL_SPEED = 0.1;
 
+const float HUD_PADDING = 10.0;
+
 const bool DEBUG_VELOCITY_SCALE = 1.0;
 const double VISUAL_ORBIT_DURATION = 10;
 const int VISUAL_ORBIT_RESOLUTION_SCALE = 600;
@@ -141,6 +143,7 @@ class Game {
         bool useParentAsReference = true;
 
         // Methods
+        void loadInputMappings();
         void updateInputStates();
         void handleInput(double dt);
         bool inputPressed(InputAction input);

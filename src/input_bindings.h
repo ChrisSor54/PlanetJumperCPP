@@ -116,3 +116,26 @@ struct InputManager {
     }, {}, Vector2f(0, 0)
     };
 };
+
+const std::unordered_map<std::string, InputAction> inputActionNames = {
+    {"Up",                   InputAction::Up},
+    {"Down",                 InputAction::Down},
+    {"Left",                 InputAction::Left},
+    {"Right",                InputAction::Right},
+    {"Jump",                 InputAction::Jump},
+    {"Walk",                 InputAction::Walk},
+    {"RotateR",              InputAction::RotateR},
+    {"RotateL",              InputAction::RotateL},
+    {"ZoomIn",               InputAction::ZoomIn},
+    {"ZoomOut",              InputAction::ZoomOut},
+    {"SpeedUp",              InputAction::SpeedUp},
+    {"SpeedDown",            InputAction::SpeedDown},
+    {"ResetTimescale",       InputAction::ResetTimescale},
+    {"ToggleRotation",       InputAction::ToggleRotation},
+    {"ToggleFreecam",        InputAction::ToggleFreecam},
+    {"AddPlayer",            InputAction::AddPlayer},
+    {"RemovePlayer",         InputAction::RemovePlayer},
+    {"DEBUG",                InputAction::DEBUG},
+    {"DEBUG_ShowVelocities", InputAction::DEBUG_ShowVelocities},
+    {"DEBUG_ToggleReference", InputAction::DEBUG_ToggleReference},
+};

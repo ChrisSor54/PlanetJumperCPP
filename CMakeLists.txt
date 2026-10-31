@@ -25,4 +25,10 @@ foreach(file ${TEXTURE_FILES})
     )
 endforeach()
 
+add_custom_command(TARGET PlanetJumper POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_SOURCE_DIR}/src/input_mappings.ini
+            $<TARGET_FILE_DIR:PlanetJumper>/input_mappings.ini
+)
+
 target_link_libraries(PlanetJumper PRIVATE SFML::Graphics SFML::Window SFML::System)
